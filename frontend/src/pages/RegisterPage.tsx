@@ -3,7 +3,6 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/auth.store';
 
 const ROLES = [
-  { value: 'ADMIN',    label: '🛡️ Admin' },
   { value: 'FOUNDER',  label: '👑 Founder' },
   { value: 'FRONTEND', label: '🎨 Frontend' },
   { value: 'BACKEND',  label: '⚙️ Backend' },
