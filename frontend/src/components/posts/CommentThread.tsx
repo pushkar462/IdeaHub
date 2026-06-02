@@ -3,6 +3,8 @@ import { Comment } from '@/types';
 import Avatar from '@/components/shared/Avatar';
 import api from '@/api/axios';
 import { useAuthStore } from '@/stores/auth.store';
+import { MentionsInput, Mention } from 'react-mentions';
+import { fetchUsersForMention } from '@/lib/mentions';
 
 interface Props {
   comments: Comment[];
@@ -100,12 +102,24 @@ const CommentItem: React.FC<{
           {/* Reply form */}
           {showReply && (
             <div className="mt-3 flex gap-2">
-              <textarea
-                className="input text-sm flex-1 min-h-[60px] resize-none"
-                placeholder="Write a reply…"
-                value={replyText}
-                onChange={(e) => setReplyText(e.target.value)}
-              />
+              <div className="flex-1 border border-surface-border rounded-lg focus-within:ring-2 focus-within:ring-brand-500 overflow-hidden bg-white">
+                <MentionsInput
+                  className="mentions-input text-sm w-full outline-none"
+                  value={replyText}
+                  onChange={(e) => setReplyText(e.target.value)}
+                  placeholder="Write a reply…"
+                  style={{
+                    control: { minHeight: 60 },
+                    input: { margin: 0, padding: 8, border: 'none', outline: 'none' },
+                    suggestions: {
+                      list: { backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', zIndex: 10 },
+                      item: { padding: '8px 12px', borderBottom: '1px solid #f3f4f6' },
+                    },
+                  }}
+                >
+                  <Mention trigger="@" data={fetchUsersForMention} displayTransform={(id, display) => `@${display}`} style={{ backgroundColor: '#e0f2fe', color: '#0369a1', borderRadius: '4px' }} />
+                </MentionsInput>
+              </div>
               <button onClick={submitReply} disabled={loading} className="btn-primary self-end">
                 {loading ? '…' : 'Send'}
               </button>
@@ -139,12 +153,24 @@ const CommentThread: React.FC<Props> = ({ comments, postId, onRefresh }) => {
     <div>
       {/* New comment box */}
       <div className="flex gap-3 mb-6">
-        <textarea
-          className="input text-sm flex-1 min-h-[72px] resize-none"
-          placeholder="Write a comment… use @name to mention someone"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-        />
+        <div className="flex-1 border border-surface-border rounded-lg focus-within:ring-2 focus-within:ring-brand-500 overflow-hidden bg-white">
+          <MentionsInput
+            className="mentions-input text-sm w-full outline-none"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder="Write a comment… use @name to mention someone"
+            style={{
+              control: { minHeight: 72 },
+              input: { margin: 0, padding: 12, border: 'none', outline: 'none' },
+              suggestions: {
+                list: { backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', zIndex: 10 },
+                item: { padding: '8px 12px', borderBottom: '1px solid #f3f4f6' },
+              },
+            }}
+          >
+            <Mention trigger="@" data={fetchUsersForMention} displayTransform={(id, display) => `@${display}`} style={{ backgroundColor: '#e0f2fe', color: '#0369a1', borderRadius: '4px' }} />
+          </MentionsInput>
+        </div>
         <button onClick={submit} disabled={loading} className="btn-primary self-end">
           {loading ? '…' : 'Comment'}
         </button>

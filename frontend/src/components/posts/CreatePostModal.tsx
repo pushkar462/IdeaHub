@@ -1,6 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import api from '@/api/axios';
 import { usePostStore } from '@/stores/post.store';
+import { useDepartmentStore } from '@/stores/department.store';
+import { MentionsInput, Mention } from 'react-mentions';
+import { fetchUsersForMention } from '@/lib/mentions';
 
 interface Props {
   isOpen: boolean;
@@ -12,12 +15,21 @@ const PRIORITIES = ['LOW', 'MEDIUM', 'HIGH'];
 
 const CreatePostModal: React.FC<Props> = ({ isOpen, onClose }) => {
   const { fetchFeed } = usePostStore();
+  const { departments, fetchDepartments } = useDepartmentStore();
+  
+  useEffect(() => {
+    if (isOpen) {
+      fetchDepartments();
+    }
+  }, [isOpen]);
+
   const [form, setForm] = useState({
     title: '', description: '', category: 'DISCUSSION',
-    priority: 'MEDIUM', tags: '', assigneeId: '',
+    priority: 'MEDIUM', tags: '', assigneeId: '', departmentId: ''
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [suggestionReason, setSuggestionReason] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,10 +43,11 @@ const CreatePostModal: React.FC<Props> = ({ isOpen, onClose }) => {
         priority: form.priority,
         tags: form.tags ? form.tags.split(',').map((t) => t.trim()).filter(Boolean) : [],
         assigneeId: form.assigneeId ? Number(form.assigneeId) : undefined,
+        departmentId: form.departmentId ? Number(form.departmentId) : undefined,
       });
       await fetchFeed();
       onClose();
-      setForm({ title: '', description: '', category: 'DISCUSSION', priority: 'MEDIUM', tags: '', assigneeId: '' });
+      setForm({ title: '', description: '', category: 'DISCUSSION', priority: 'MEDIUM', tags: '', assigneeId: '', departmentId: '' });
     } catch (err: any) {
       setError(err.response?.data?.message ?? 'Failed to create post');
     } finally {
@@ -70,12 +83,29 @@ const CreatePostModal: React.FC<Props> = ({ isOpen, onClose }) => {
 
           <div>
             <label className="label">Description *</label>
-            <textarea
-              className="input min-h-[100px] resize-y" required
-              placeholder="Describe the issue, idea, or discussion… use @name to mention someone"
-              value={form.description}
-              onChange={(e) => setForm({ ...form, description: e.target.value })}
-            />
+            <div className="border border-surface-border rounded-lg focus-within:ring-2 focus-within:ring-brand-500 focus-within:border-brand-500 overflow-hidden bg-white">
+              <MentionsInput
+                className="mentions-input min-h-[100px] w-full p-3 text-sm outline-none"
+                value={form.description}
+                onChange={(e) => setForm({ ...form, description: e.target.value })}
+                placeholder="Describe the issue, idea, or discussion… use @name to mention someone"
+                style={{
+                  control: { minHeight: 100 },
+                  input: { margin: 0, padding: 12, border: 'none', outline: 'none' },
+                  suggestions: {
+                    list: { backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' },
+                    item: { padding: '8px 12px', borderBottom: '1px solid #f3f4f6' },
+                  },
+                }}
+              >
+                <Mention
+                  trigger="@"
+                  data={fetchUsersForMention}
+                  displayTransform={(id, display) => `@${display}`}
+                  style={{ backgroundColor: '#e0f2fe', color: '#0369a1', borderRadius: '4px', padding: '0 2px' }}
+                />
+              </MentionsInput>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -96,6 +126,59 @@ const CreatePostModal: React.FC<Props> = ({ isOpen, onClose }) => {
                   <option key={p} value={p}>{p}</option>
                 ))}
               </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">Target Department</label>
+              <select className="input" value={form.departmentId}
+                onChange={(e) => setForm({ ...form, departmentId: e.target.value })}>
+                <option value="">(None)</option>
+                {departments.map((d) => (
+                  <option key={d.id} value={d.id}>{d.name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <div className="flex items-center justify-between">
+                <label className="label mb-0">Assignee ID</label>
+                {form.departmentId && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        const { data } = await api.get(`/intelligence/recommend-assignee/${form.departmentId}`);
+                        if (data && data.recommendedAssignee) {
+                          setForm(prev => ({ ...prev, assigneeId: String(data.recommendedAssignee.id) }));
+                          setSuggestionReason(data.reasons.join(', '));
+                        } else {
+                          setSuggestionReason('No suggestion available.');
+                        }
+                      } catch (err) {
+                        setSuggestionReason('Failed to load suggestion.');
+                      }
+                    }}
+                    className="text-xs text-brand-600 hover:text-brand-700 flex items-center gap-1 font-medium"
+                  >
+                    ✨ Suggest
+                  </button>
+                )}
+              </div>
+              <input
+                className="input mt-1"
+                placeholder="Optional User ID"
+                value={form.assigneeId}
+                onChange={(e) => {
+                  setForm({ ...form, assigneeId: e.target.value });
+                  setSuggestionReason(''); // clear reason if manually changed
+                }}
+              />
+              {suggestionReason && (
+                <p className="text-xs text-purple-600 mt-1 flex items-start gap-1">
+                  <span>✨</span> {suggestionReason}
+                </p>
+              )}
             </div>
           </div>
 
