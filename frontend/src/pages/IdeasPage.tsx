@@ -7,23 +7,27 @@ import Loader from '@/components/shared/Loader';
 import EmptyState from '@/components/shared/EmptyState';
 import api from '@/api/axios';
 
+const CATEGORIES = ['', 'BUG', 'IMPROVEMENT', 'SUGGESTION', 'FEATURE', 'IDEA', 'DISCUSSION'];
+
 const IdeasPage: React.FC = () => {
   const { feed, loading, fetchFeed, reactToPost } = usePostStore();
   const { user } = useAuthStore();
   const [showModal, setShowModal] = useState(false);
+  const [category, setCategory] = useState('');
 
   useEffect(() => {
-    fetchFeed({ category: 'IDEA' });
-  }, []);
+    fetchFeed({ category });
+  }, [category]);
 
-  const ideas = feed.filter((p) => p.category === 'IDEA');
+  const ideas = feed;
 
   const handleApprove = async (id: number) => {
     await api.patch(`/posts/${id}/status`, { status: 'RESOLVED' });
-    fetchFeed({ category: 'IDEA' });
+    fetchFeed({ category });
   };
 
-  const open     = ideas.filter((i) => i.status === 'OPEN');
+  const myIdeas = ideas.filter((i) => i.authorId === user?.id && i.status !== 'ARCHIVED');
+  const open     = ideas.filter((i) => i.status === 'OPEN' && i.authorId !== user?.id);
   const approved = ideas.filter((i) => i.status === 'RESOLVED');
   const archived = ideas.filter((i) => i.status === 'ARCHIVED');
 
@@ -48,6 +52,20 @@ const IdeasPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Category Filter */}
+      <div className="flex justify-end">
+        <select 
+          className="input w-48" 
+          value={category} 
+          onChange={(e) => setCategory(e.target.value)}
+        >
+          <option value="">All Categories</option>
+          {CATEGORIES.filter(Boolean).map((c) => (
+            <option key={c} value={c}>{c.replace('_', ' ')}</option>
+          ))}
+        </select>
+      </div>
+
       {loading ? (
         <Loader />
       ) : ideas.length === 0 ? (
@@ -63,6 +81,26 @@ const IdeasPage: React.FC = () => {
         />
       ) : (
         <>
+          {/* My Active Ideas */}
+          {myIdeas.length > 0 && (
+            <section>
+              <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                <span className="w-2 h-2 bg-purple-400 rounded-full" />
+                My Active Ideas ({myIdeas.length})
+              </h3>
+              <div className="space-y-4">
+                {myIdeas.map((p) => (
+                  <IdeaCard
+                    key={p.id}
+                    post={p}
+                    onReact={(id, emoji) => reactToPost(id, emoji)}
+                    onApprove={(user?.role === 'FOUNDER' || user?.role === 'ADMIN') ? handleApprove : undefined}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
+
           {/* Open */}
           {open.length > 0 && (
             <section>
