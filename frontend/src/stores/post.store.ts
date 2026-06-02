@@ -20,6 +20,7 @@ interface PostState {
   updateStatus: (id: number, status: string) => Promise<void>;
   deletePost: (id: number) => Promise<void>;
   reactToPost: (id: number, emoji: string) => Promise<void>;
+  optimisticUpdate: (id: number, updates: Partial<Post>) => void;
 }
 
 export const usePostStore = create<PostState>((set, get) => ({
@@ -68,5 +69,12 @@ export const usePostStore = create<PostState>((set, get) => ({
     await api.post(`/posts/${id}/react`, { emoji });
     if (get().current?.id === id) await get().fetchPost(id);
     else await get().fetchFeed();
+  },
+
+  optimisticUpdate: (id, updates) => {
+    set((s) => ({
+      feed: s.feed.map((p) => (p.id === id ? { ...p, ...updates } as Post : p)),
+      current: s.current?.id === id ? { ...s.current, ...updates } as Post : s.current,
+    }));
   },
 }));

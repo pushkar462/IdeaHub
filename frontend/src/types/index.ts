@@ -21,7 +21,7 @@ export type PostCategory =
   | 'IDEA'
   | 'DISCUSSION';
 
-export type PostStatus = 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'ARCHIVED';
+export type PostStatus = 'BACKLOG' | 'TODO' | 'IN_PROGRESS' | 'IN_REVIEW' | 'BLOCKED' | 'DONE';
 export type Priority = 'LOW' | 'MEDIUM' | 'HIGH';
 
 export interface Reaction {
@@ -53,6 +53,13 @@ export interface Post {
   authorId: number;
   assignee?: User;
   assigneeId?: number;
+  departmentId?: number;
+  department?: { id: number; name: string; slug: string };
+  workflowMetrics?: {
+    slaStatus: 'HEALTHY' | 'AT_RISK' | 'BREACHED';
+    totalTimeBlocked: number;
+    aiSummaryCache?: any;
+  } | null;
   reactions: Reaction[];
   comments?: Comment[];
   attachments?: Attachment[];
