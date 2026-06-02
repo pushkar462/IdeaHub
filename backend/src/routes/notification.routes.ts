@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import {
-  getUserNotifications,
+  getMyNotifications,
   markAsRead,
   markAllAsRead,
 } from '../controllers/notification.controller';
@@ -8,8 +8,10 @@ import { authenticate } from '../middleware/auth.middleware';
 
 const router = Router();
 
-router.get('/', authenticate, getUserNotifications);
-router.patch('/read-all', authenticate, markAllAsRead);
-router.patch('/:id/read', authenticate, markAsRead);
+router.use(authenticate);
+
+router.get('/', getMyNotifications);
+router.patch('/:id/read', markAsRead);
+router.post('/read-all', markAllAsRead);
 
 export default router;

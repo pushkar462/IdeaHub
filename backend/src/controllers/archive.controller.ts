@@ -41,7 +41,7 @@ export const archivePost = async (req: Request, res: Response) => {
 
   const updated = await prisma.post.update({
     where: { id },
-    data: { status: 'ARCHIVED' },
+    data: { status: 'DONE' },
   });
   return res.json(updated);
 };

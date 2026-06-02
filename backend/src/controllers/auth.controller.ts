@@ -1,24 +1,28 @@
 import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { StatusCodes } from 'http-status-codes';
 import prisma from '../config/db';
 import { JwtPayload } from '../utils/jwt';
+import { AppError } from '../utils/AppError';
+import { successResponse } from '../utils/response.util';
+import { config } from '../config/env.config';
 
 /* ---------- REGISTER ---------- */
 export const register = async (req: Request, res: Response) => {
   const { email, password, name, role, bio, avatarUrl } = req.body;
 
-  if (!email || !password || !name || !role) {
-    return res.status(400).json({ message: 'email, password, name, role are required' });
+  const existing = await prisma.user.findUnique({ where: { email } });
+  if (existing) {
+    throw new AppError('Email already registered', StatusCodes.CONFLICT, 'EMAIL_EXISTS');
   }
 
-  const existing = await prisma.user.findUnique({ where: { email } });
-  if (existing) return res.status(400).json({ message: 'Email already registered' });
-
-  // Limit to one account per role
-  const existingRole = await prisma.user.findFirst({ where: { role } });
-  if (existingRole) {
-    return res.status(400).json({ message: `A user with the ${role} role already exists.` });
+  // Limit to one account per role for founders/admins
+  if (role) {
+    const existingRole = await prisma.user.findFirst({ where: { role } });
+    if (existingRole) {
+      throw new AppError(`A user with the ${role} role already exists.`, StatusCodes.CONFLICT, 'ROLE_EXISTS');
+    }
   }
 
   const passwordHash = await bcrypt.hash(password, 10);
@@ -32,11 +36,12 @@ export const register = async (req: Request, res: Response) => {
     role: user.role,
     name: user.name,
   };
-  const token = jwt.sign(payload, process.env.JWT_SECRET as string, {
+  
+  const token = jwt.sign(payload, config.JWT_SECRET, {
     expiresIn: '7d',
   });
 
-  return res.status(201).json({
+  return successResponse(res, 'Registration successful', {
     token,
     user: {
       id: user.id,
@@ -47,22 +52,22 @@ export const register = async (req: Request, res: Response) => {
       bio: user.bio,
       createdAt: user.createdAt,
     },
-  });
+  }, {}, StatusCodes.CREATED);
 };
 
 /* ---------- LOGIN ---------- */
 export const login = async (req: Request, res: Response) => {
   const { email, password } = req.body;
 
-  if (!email || !password) {
-    return res.status(400).json({ message: 'email and password are required' });
+  const user = await prisma.user.findUnique({ where: { email } });
+  if (!user) {
+    throw new AppError('Invalid credentials', StatusCodes.UNAUTHORIZED, 'INVALID_CREDENTIALS');
   }
 
-  const user = await prisma.user.findUnique({ where: { email } });
-  if (!user) return res.status(400).json({ message: 'Invalid credentials' });
-
   const valid = await bcrypt.compare(password, user.passwordHash);
-  if (!valid) return res.status(400).json({ message: 'Invalid credentials' });
+  if (!valid) {
+    throw new AppError('Invalid credentials', StatusCodes.UNAUTHORIZED, 'INVALID_CREDENTIALS');
+  }
 
   const payload: JwtPayload = {
     userId: user.id,
@@ -70,11 +75,12 @@ export const login = async (req: Request, res: Response) => {
     role: user.role,
     name: user.name,
   };
-  const token = jwt.sign(payload, process.env.JWT_SECRET as string, {
+  
+  const token = jwt.sign(payload, config.JWT_SECRET, {
     expiresIn: '7d',
   });
 
-  return res.json({
+  return successResponse(res, 'Login successful', {
     token,
     user: {
       id: user.id,
@@ -103,7 +109,7 @@ export const getMe = async (req: Request, res: Response) => {
       _count: { select: { posts: true, comments: true } },
     },
   });
-  return res.json(user);
+  return successResponse(res, 'User profile retrieved', user);
 };
 
 /* ---------- UPDATE PROFILE ---------- */
@@ -117,7 +123,7 @@ export const updateProfile = async (req: Request, res: Response) => {
       avatarUrl: true, bio: true, createdAt: true,
     },
   });
-  return res.json(user);
+  return successResponse(res, 'Profile updated successfully', user);
 };
 
 /* ---------- GET USER BY ID ---------- */
@@ -131,8 +137,12 @@ export const getUserById = async (req: Request, res: Response) => {
       _count: { select: { posts: true, comments: true } },
     },
   });
-  if (!user) return res.status(404).json({ message: 'User not found' });
-  return res.json(user);
+  
+  if (!user) {
+    throw new AppError('User not found', StatusCodes.NOT_FOUND, 'USER_NOT_FOUND');
+  }
+  
+  return successResponse(res, 'User retrieved', user);
 };
 
 /* ---------- LIST ALL USERS ---------- */
@@ -140,5 +150,5 @@ export const listUsers = async (_req: Request, res: Response) => {
   const users = await prisma.user.findMany({
     select: { id: true, name: true, role: true, avatarUrl: true, email: true },
   });
-  return res.json(users);
+  return successResponse(res, 'Users retrieved', users);
 };
