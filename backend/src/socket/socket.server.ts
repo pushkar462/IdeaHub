@@ -5,14 +5,11 @@ import { config } from '../config/env.config';
 import { setIo } from './io';
 import prisma from '../config/db';
 import { ServerToClientEvents, ClientToServerEvents, InterServerEvents, SocketData } from './socket.types';
-import { createAdapter } from '@socket.io/redis-adapter';
-import { redisClient, redisSubClient } from '../infrastructure/redis/redis.client';
 import { logger } from '../infrastructure/observability/logger';
 
 export const initializeSocketServer = (httpServer: http.Server) => {
   const io = new SocketIOServer<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>(httpServer, {
-    cors: { origin: '*', methods: ['GET', 'POST'] },
-    adapter: createAdapter(redisClient, redisSubClient),
+    cors: { origin: '*', methods: ['GET', 'POST'] }
   });
 
   // Authentication Middleware

@@ -16,11 +16,9 @@ initializeSocketServer(httpServer);
 // Boot up internal event listeners that bridge to sockets
 initializeSocketEventHandlers();
 
-// Boot up BullMQ Workers and Event Bridges
-import { startWorker } from './jobs/worker';
-import { startEventBridge } from './services/events/event-to-queue.bridge';
-startWorker();
-startEventBridge();
+// Boot up internal event listeners that bridge logic
+import { startInternalEventHandlers } from './services/events/internal-event-handlers';
+startInternalEventHandlers();
 
 httpServer.listen(PORT, () => {
   console.log(`🚀 Server running at http://localhost:${PORT}`);

@@ -3,7 +3,7 @@ import { StatusCodes } from 'http-status-codes';
 import { AppError } from '../utils/AppError';
 import { successResponse } from '../utils/response.util';
 import { assignmentRecommendationService } from '../services/intelligence/assignment-recommendation.service';
-import { aiQueue } from '../jobs/queues.config';
+import { workflowSummaryService } from '../services/intelligence/workflow-summary.service';
 import prisma from '../config/db';
 
 /* ---------- RECOMMEND ASSIGNEE ---------- */
@@ -56,9 +56,10 @@ export const triggerSummary = async (req: Request, res: Response) => {
     return successResponse(res, 'Summary retrieved from cache', metrics.aiSummaryCache);
   }
 
-  // Deduplicate triggers by postId
-  await aiQueue.add('generate-summary', { postId }, {
-    jobId: `summary-${postId}-${post.updatedAt.getTime()}`,
+  // Trigger AI Summary Generation in the background (fire-and-forget)
+  // The service handles its own deduplication (in-memory lock) and caching.
+  workflowSummaryService.generateSummaryIdempotent(postId).catch((err) => {
+    // Errors are logged inside the service. No need to crash the request here.
   });
 
   return successResponse(res, 'Summary generation queued', null, {}, StatusCodes.ACCEPTED);
