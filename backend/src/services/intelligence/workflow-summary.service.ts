@@ -4,6 +4,15 @@ import { StatusCodes } from 'http-status-codes';
 import { logger } from '../../infrastructure/observability/logger';
 import { eventBus, INTERNAL_EVENTS } from '../events/internal.emitter';
 import { config } from '../../config/env.config';
+import Groq from 'groq-sdk';
+
+// Lazy singleton — avoids crashing if the key is missing at boot
+let _groq: Groq | null = null;
+function getGroqClient(): Groq {
+  if (!config.GROQ_API_KEY) throw new Error('GROQ_API_KEY is not configured');
+  if (!_groq) _groq = new Groq({ apiKey: config.GROQ_API_KEY });
+  return _groq;
+}
 
 const MAX_COMMENTS_FOR_CONTEXT = 20;
 const MAX_CONTEXT_TOKENS_ESTIMATE = 3000;
@@ -85,64 +94,52 @@ export class WorkflowSummaryService {
       return metrics.aiSummaryCache as any;
     }
 
-    logger.info({ postId }, 'Cache miss or stale. Generating new AI Summary via Grok...');
+    logger.info({ postId }, 'Cache miss or stale. Generating new AI Summary via Groq...');
 
-    // PING GROK
+    // PING GROQ
     let result: WorkflowSummaryResult;
     try {
-      const apiKey = process.env.GROK_API_KEY;
-      if (!apiKey) throw new Error('GROK_API_KEY is not configured');
+      const groq = getGroqClient();
 
-      const response = await fetch('https://api.x.ai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
-        },
-        body: JSON.stringify({
-          model: 'grok-2-latest',
-          messages: [
-            {
-              role: 'system',
-              content: `You are an expert workflow analyst. Summarize the provided context and strictly return JSON only in this exact format:
+      const completion = await groq.chat.completions.create({
+        model: 'llama-3.3-70b-versatile',
+        temperature: 0.2,
+        response_format: { type: 'json_object' },
+        messages: [
+          {
+            role: 'system',
+            content: `You are an expert workflow analyst. Summarize the provided context and strictly return JSON only in this exact format:
 {
   "summary": "2-3 sentences explaining the core issue and current state",
   "keyPoints": ["point 1", "point 2"],
   "risks": ["risk 1 if any"],
   "nextActions": ["action 1"]
 }
-Do not include markdown blocks like \`\`\`json. Just raw JSON.`
-            },
-            {
-              role: 'user',
-              content: `Please analyze this workflow:\n\n${context}`
-            }
-          ],
-          temperature: 0.2
-        })
+Do not include markdown blocks. Just raw JSON.`
+          },
+          {
+            role: 'user',
+            content: `Please analyze this workflow:\n\n${context}`
+          }
+        ]
       });
 
-      if (!response.ok) {
-        throw new Error(`Grok API Error: ${response.status} ${response.statusText}`);
-      }
+      let rawContent = completion.choices?.[0]?.message?.content || '{}';
 
-      const data = await response.json();
-      let rawContent = data.choices?.[0]?.message?.content || '{}';
-      
-      // Attempt to clean if the model still returns markdown wrappers
+      // Clean markdown wrappers if the model still emits them
       rawContent = rawContent.replace(/^```json/m, '').replace(/```$/m, '').trim();
       result = JSON.parse(rawContent);
 
       // Validate structure heuristically
       if (!result.summary || !Array.isArray(result.keyPoints)) {
-        throw new Error('Invalid JSON structure returned by Grok');
+        throw new Error('Invalid JSON structure returned by Groq');
       }
 
     } catch (err) {
-      logger.error({ err }, 'Grok API or JSON parse failed. Engaging graceful downgrade.');
-      // Graceful fallback
+      logger.error({ err }, 'Groq API or JSON parse failed. Engaging graceful downgrade.');
+      // Graceful fallback — never crash the worker
       result = {
-        summary: "AI summarization is currently unavailable. Please review the comments manually.",
+        summary: 'AI summarization is currently unavailable. Please review the comments manually.',
         keyPoints: [],
         risks: [],
         nextActions: []

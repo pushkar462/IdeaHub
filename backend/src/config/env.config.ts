@@ -9,4 +9,5 @@ export const config = cleanEnv(process.env, {
   PORT: port({ default: 4000, desc: 'API port' }),
   NODE_ENV: str({ choices: ['development', 'test', 'production'], default: 'development' }),
   REDIS_URL: str({ default: 'redis://localhost:6379' }),
+  GROQ_API_KEY: str({ default: '', desc: 'Groq API key for AI summarization' }),
 });
