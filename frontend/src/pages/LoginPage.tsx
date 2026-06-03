@@ -31,7 +31,7 @@ const LoginPage: React.FC = () => {
             C
           </div>
           <h1 className="text-2xl font-bold text-gray-900">Welcome back</h1>
-          <p className="text-gray-500 mt-1">Sign in to CollabHub</p>
+          <p className="text-gray-500 mt-1">Sign in to IdeaHub</p>
         </div>
 
         <div className="card p-8">
@@ -96,7 +96,7 @@ const LoginPage: React.FC = () => {
           </form>
 
           <p className="text-center text-sm text-gray-500 mt-6">
-            New to CollabHub?{' '}
+            New to IdeaHub?{' '}
             <Link to="/register" className="text-brand-500 font-medium hover:underline">
               Create an account
             </Link>

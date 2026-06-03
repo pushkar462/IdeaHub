@@ -33,7 +33,7 @@ const Sidebar: React.FC = () => {
             C
           </div>
           <div>
-            <p className="font-bold text-gray-900 text-sm leading-none">CollabHub</p>
+            <p className="font-bold text-gray-900 text-sm leading-none">IdeaHub</p>
             <p className="text-xs text-gray-400">Internal Network</p>
           </div>
         </div>

@@ -25,6 +25,7 @@ export type FeedCardDTO = {
   author: AuthorDTO;
   assignee: AuthorDTO | null;
   replyCount: number;
+  reactionCount: number;
   department?: { id: number; name: string; slug: string } | null;
   workflowMetrics?: { slaStatus: string; totalTimeBlocked: number } | null;
   // Intentionally excludes full comment tree, raw internal payload blobs, etc.
@@ -54,7 +55,7 @@ export const mapToFeedCardDTO = (
   post: Post & {
     author: Pick<User, 'id' | 'name' | 'role' | 'avatarUrl'>;
     assignee: Pick<User, 'id' | 'name' | 'role' | 'avatarUrl'> | null;
-    _count?: { comments: number };
+    _count?: { comments: number; reactions?: number };
   }
 ): FeedCardDTO => ({
   id: post.id,
@@ -68,6 +69,7 @@ export const mapToFeedCardDTO = (
   author: mapToAuthorDTO(post.author),
   assignee: post.assignee ? mapToAuthorDTO(post.assignee) : null,
   replyCount: post._count?.comments || 0,
+  reactionCount: post._count?.reactions || 0,
   department: (post as any).department ?? null,
   workflowMetrics: (post as any).workflowMetrics ?? null,
 });

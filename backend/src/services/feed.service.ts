@@ -36,7 +36,12 @@ export class FeedService {
 
     const where: any = {};
     if (category) where.category = category;
-    if (status) where.status = status;
+    if (status) {
+      where.status = status;
+    } else {
+      // By default, exclude archived/completed posts from the main feed
+      where.status = { not: 'DONE' };
+    }
     if (priority) where.priority = priority;
     if (assigneeId) where.assigneeId = assigneeId;
     if (departmentId) where.departmentId = departmentId;

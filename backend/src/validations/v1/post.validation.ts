@@ -13,16 +13,17 @@ export const createPostSchema = z.object({
 
 export const updatePostStatusSchema = z.object({
   params: z.object({
-    id: z.string().regex(/^\\d+$/, 'ID must be numeric'),
+    id: z.string().regex(/^\d+$/, 'ID must be numeric'),
   }).strict(),
   body: z.object({
-    status: z.enum(['OPEN', 'IN_PROGRESS', 'RESOLVED', 'ARCHIVED']),
+    status: z.enum(['BACKLOG', 'TODO', 'IN_PROGRESS', 'IN_REVIEW', 'BLOCKED', 'DONE']).optional(),
+    assigneeId: z.number().int().positive().optional().nullable(),
   }).strict()
 });
 
 export const reactToPostSchema = z.object({
   params: z.object({
-    id: z.string().regex(/^\\d+$/, 'ID must be numeric'),
+    id: z.string().regex(/^\d+$/, 'ID must be numeric'),
   }).strict(),
   body: z.object({
     emoji: z.string().min(1, 'Emoji is required'),

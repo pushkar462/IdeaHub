@@ -251,3 +251,31 @@ export const deletePost = async (req: Request, res: Response) => {
   await prisma.post.delete({ where: { id } });
   return successResponse(res, 'Post deleted successfully');
 };
+
+/* ---------- GET STATS ---------- */
+export const getStats = async (req: Request, res: Response) => {
+  const userId = req.user!.id;
+
+  const [totalActive, myActiveTasks, needReview, completed] = await Promise.all([
+    // Total active posts across the entire platform
+    prisma.post.count({ where: { status: { not: 'DONE' } } }),
+    // Tasks assigned to me that are not DONE
+    prisma.post.count({ where: { assigneeId: userId, status: { not: 'DONE' } } }),
+    // Posts waiting for review
+    prisma.post.count({ where: { status: 'IN_REVIEW' } }),
+    // Total posts I have authored or been assigned to that are DONE
+    prisma.post.count({
+      where: {
+        status: 'DONE',
+        OR: [{ authorId: userId }, { assigneeId: userId }],
+      },
+    }),
+  ]);
+
+  return successResponse(res, 'Stats retrieved', {
+    totalActive,
+    myActiveTasks,
+    needReview,
+    completed,
+  });
+};

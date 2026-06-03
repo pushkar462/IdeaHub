@@ -7,6 +7,7 @@ import {
   reactToPost,
   deletePost,
   getPostComments,
+  getStats,
 } from '../controllers/post.controller';
 import { authenticate } from '../middleware/auth.middleware';
 import { uploadRaw, validateMagicBytes } from '../middleware/upload.middleware';
@@ -18,6 +19,7 @@ import { getFeedSchema, getCommentsSchema } from '../validations/v1/feed.validat
 const router = Router();
 
 router.get('/', authenticate, validate(getFeedSchema), getFeed);
+router.get('/stats', authenticate, getStats);
 router.post('/', authenticate, uploadLimiter, uploadRaw.single('attachment'), validateMagicBytes, validate(createPostSchema), createPost);
 router.get('/:id', authenticate, getPost);
 router.get('/:id/comments', authenticate, validate(getCommentsSchema), getPostComments);

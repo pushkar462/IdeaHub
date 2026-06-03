@@ -22,7 +22,7 @@ const IdeasPage: React.FC = () => {
   const ideas = feed;
 
   const handleApprove = async (id: number) => {
-    await api.patch(`/posts/${id}/status`, { status: 'RESOLVED' });
+    await api.patch(`/posts/${id}/status`, { status: 'DONE' });
     fetchFeed({ category });
   };
 

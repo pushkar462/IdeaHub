@@ -33,7 +33,7 @@ export const getFeedSchema = z.object({
     cursor: cursorSchema,
     limit: feedLimitSchema,
     category: z.enum(['BUG', 'IMPROVEMENT', 'SUGGESTION', 'FEATURE', 'IDEA', 'DISCUSSION']).optional(),
-    status: z.enum(['OPEN', 'IN_PROGRESS', 'RESOLVED', 'ARCHIVED']).optional(),
+    status: z.enum(['BACKLOG', 'TODO', 'IN_PROGRESS', 'IN_REVIEW', 'BLOCKED', 'DONE']).optional(),
     priority: z.enum(['LOW', 'MEDIUM', 'HIGH']).optional(),
     search: z.string().optional(), // Left in for now, ILIKE search
     assigneeId: z.union([z.string(), z.number()]).optional().transform(val => val ? Number(val) : undefined),
@@ -46,7 +46,7 @@ export const getCommentsSchema = z.object({
     limit: feedLimitSchema,
   }).strict(),
   params: z.object({
-    postId: z.string().regex(/^\\d+$/, 'Post ID must be numeric').transform(Number)
+    id: z.string().regex(/^\d+$/, 'Post ID must be numeric').transform(Number)
   }).strict()
 });
 
@@ -56,6 +56,6 @@ export const getRepliesSchema = z.object({
     limit: feedLimitSchema,
   }).strict(),
   params: z.object({
-    commentId: z.string().regex(/^\\d+$/, 'Comment ID must be numeric').transform(Number)
+    id: z.string().regex(/^\d+$/, 'Comment ID must be numeric').transform(Number)
   }).strict()
 });

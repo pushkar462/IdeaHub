@@ -10,6 +10,7 @@ interface Props {
   comments: Comment[];
   postId: number;
   onRefresh: () => void;
+  isLocked?: boolean;
 }
 
 const CommentItem: React.FC<{
@@ -17,7 +18,8 @@ const CommentItem: React.FC<{
   postId: number;
   onRefresh: () => void;
   depth?: number;
-}> = ({ comment, postId, onRefresh, depth = 0 }) => {
+  isLocked?: boolean;
+}> = ({ comment, postId, onRefresh, depth = 0, isLocked }) => {
   const { user } = useAuthStore();
   const [showReply, setShowReply] = useState(false);
   const [replyText, setReplyText] = useState('');
@@ -79,22 +81,26 @@ const CommentItem: React.FC<{
           {/* Reactions */}
           <div className="flex items-center gap-3 mt-2">
             <span className="text-xs text-gray-400">{comment.reactions?.length ?? 0} 👍</span>
-            <button
-              onClick={() => setShowReply(!showReply)}
-              className="text-xs text-gray-400 hover:text-brand-500 transition-colors"
-            >
-              Reply
-            </button>
-            {user?.id === comment.authorId && (
+            {!isLocked && (
               <>
-                <button onClick={() => setEditing(true)}
-                  className="text-xs text-gray-400 hover:text-brand-500 transition-colors">
-                  Edit
+                <button
+                  onClick={() => setShowReply(!showReply)}
+                  className="text-xs text-gray-400 hover:text-brand-500 transition-colors"
+                >
+                  Reply
                 </button>
-                <button onClick={deleteComment}
-                  className="text-xs text-gray-400 hover:text-red-500 transition-colors">
-                  Delete
-                </button>
+                {user?.id === comment.authorId && (
+                  <>
+                    <button onClick={() => setEditing(true)}
+                      className="text-xs text-gray-400 hover:text-brand-500 transition-colors">
+                      Edit
+                    </button>
+                    <button onClick={deleteComment}
+                      className="text-xs text-gray-400 hover:text-red-500 transition-colors">
+                      Delete
+                    </button>
+                  </>
+                )}
               </>
             )}
           </div>
@@ -111,6 +117,7 @@ const CommentItem: React.FC<{
                   style={{
                     control: { minHeight: 60 },
                     input: { margin: 0, padding: 8, border: 'none', outline: 'none' },
+                    highlighter: { padding: 8, border: 'none' },
                     suggestions: {
                       list: { backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', zIndex: 10 },
                       item: { padding: '8px 12px', borderBottom: '1px solid #f3f4f6' },
@@ -130,13 +137,13 @@ const CommentItem: React.FC<{
 
       {/* Nested replies */}
       {comment.replies?.map((reply) => (
-        <CommentItem key={reply.id} comment={reply} postId={postId} onRefresh={onRefresh} depth={depth + 1} />
+        <CommentItem key={reply.id} comment={reply} postId={postId} onRefresh={onRefresh} depth={depth + 1} isLocked={isLocked} />
       ))}
     </div>
   );
 };
 
-const CommentThread: React.FC<Props> = ({ comments, postId, onRefresh }) => {
+const CommentThread: React.FC<Props> = ({ comments, postId, onRefresh, isLocked }) => {
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -152,36 +159,43 @@ const CommentThread: React.FC<Props> = ({ comments, postId, onRefresh }) => {
   return (
     <div>
       {/* New comment box */}
-      <div className="flex gap-3 mb-6">
-        <div className="flex-1 border border-surface-border rounded-lg focus-within:ring-2 focus-within:ring-brand-500 overflow-hidden bg-white">
-          <MentionsInput
-            className="mentions-input text-sm w-full outline-none"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder="Write a comment… use @name to mention someone"
-            style={{
-              control: { minHeight: 72 },
-              input: { margin: 0, padding: 12, border: 'none', outline: 'none' },
-              suggestions: {
-                list: { backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', zIndex: 10 },
-                item: { padding: '8px 12px', borderBottom: '1px solid #f3f4f6' },
-              },
-            }}
-          >
-            <Mention trigger="@" data={fetchUsersForMention} displayTransform={(id, display) => `@${display}`} style={{ backgroundColor: '#e0f2fe', color: '#0369a1', borderRadius: '4px' }} />
-          </MentionsInput>
+      {isLocked ? (
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-center mb-6">
+          <p className="text-sm text-gray-600">🔒 This post is marked as Done and is locked for new comments.</p>
         </div>
-        <button onClick={submit} disabled={loading} className="btn-primary self-end">
-          {loading ? '…' : 'Comment'}
-        </button>
-      </div>
+      ) : (
+        <div className="flex gap-3 mb-6">
+          <div className="flex-1 border border-surface-border rounded-lg focus-within:ring-2 focus-within:ring-brand-500 overflow-hidden bg-white">
+            <MentionsInput
+              className="mentions-input text-sm w-full outline-none"
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder="Write a comment… use @name to mention someone"
+              style={{
+                control: { minHeight: 72 },
+                input: { margin: 0, padding: 12, border: 'none', outline: 'none' },
+                highlighter: { padding: 12, border: 'none' },
+                suggestions: {
+                  list: { backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', zIndex: 10 },
+                  item: { padding: '8px 12px', borderBottom: '1px solid #f3f4f6' },
+                },
+              }}
+            >
+              <Mention trigger="@" data={fetchUsersForMention} displayTransform={(id, display) => `@${display}`} style={{ backgroundColor: '#e0f2fe', color: '#0369a1', borderRadius: '4px' }} />
+            </MentionsInput>
+          </div>
+          <button onClick={submit} disabled={loading} className="btn-primary self-end">
+            {loading ? '…' : 'Comment'}
+          </button>
+        </div>
+      )}
 
       {/* Comment list */}
       {comments.length === 0 ? (
         <p className="text-sm text-gray-400 text-center py-4">No comments yet. Be the first!</p>
       ) : (
         comments.map((c) => (
-          <CommentItem key={c.id} comment={c} postId={postId} onRefresh={onRefresh} />
+          <CommentItem key={c.id} comment={c} postId={postId} onRefresh={onRefresh} isLocked={isLocked} />
         ))
       )}
     </div>

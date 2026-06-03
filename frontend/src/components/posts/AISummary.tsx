@@ -9,9 +9,10 @@ interface Props {
     risks: string[];
     nextActions: string[];
   } | null;
+  isLocked?: boolean;
 }
 
-const AISummary: React.FC<Props> = ({ postId, initialSummary }) => {
+const AISummary: React.FC<Props> = ({ postId, initialSummary, isLocked }) => {
   const [loading, setLoading] = useState(false);
   // initialSummary is passed via WebSocket or feed fetch. We can rely on it if present.
   
@@ -94,10 +95,14 @@ const AISummary: React.FC<Props> = ({ postId, initialSummary }) => {
       
       <button 
         onClick={handleGenerate} 
-        disabled={loading}
-        className="btn-primary py-2 px-4 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50"
+        disabled={loading || isLocked}
+        className={`btn-primary py-2 px-4 transition-colors ${
+          loading || isLocked 
+            ? 'bg-indigo-300 cursor-not-allowed text-indigo-50' 
+            : 'bg-indigo-600 hover:bg-indigo-700'
+        }`}
       >
-        {loading ? 'Generating...' : 'Generate Summary'}
+        {loading ? 'Generating...' : isLocked ? 'Locked' : 'Generate Summary'}
       </button>
     </div>
   );

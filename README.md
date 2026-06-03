@@ -34,7 +34,7 @@ npm run dev               # http://localhost:5173
 
 ### backend/.env.example
 ```
-DATABASE_URL="postgresql://postgres:postgres@localhost:5432/collab?schema=public"
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/ideahub?schema=public"
 JWT_SECRET="super-secret-key"
 PORT=4000
 ```

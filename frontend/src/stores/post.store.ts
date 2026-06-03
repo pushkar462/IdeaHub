@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import api from '@/api/axios';
 import { Post } from '@/types';
+import toast from 'react-hot-toast';
 
 interface PostFilters {
   search?: string;
@@ -14,8 +15,9 @@ interface PostState {
   feed: Post[];
   current: Post | null;
   loading: boolean;
+  lastFilters: PostFilters;
   fetchFeed: (filters?: PostFilters) => Promise<void>;
-  fetchPost: (id: number) => Promise<void>;
+  fetchPost: (id: number, background?: boolean) => Promise<void>;
   createPost: (payload: FormData | Record<string, unknown>) => Promise<Post>;
   updateStatus: (id: number, status: string) => Promise<void>;
   deletePost: (id: number) => Promise<void>;
@@ -27,9 +29,10 @@ export const usePostStore = create<PostState>((set, get) => ({
   feed: [],
   current: null,
   loading: false,
+  lastFilters: {},
 
   fetchFeed: async (filters = {}) => {
-    set({ loading: true });
+    set({ loading: true, lastFilters: filters });
     try {
       const { data } = await api.get('/posts', { params: filters });
       set({ feed: data, loading: false });
@@ -38,37 +41,54 @@ export const usePostStore = create<PostState>((set, get) => ({
     }
   },
 
-  fetchPost: async (id) => {
-    set({ loading: true });
+  fetchPost: async (id, background = false) => {
+    if (!background) set({ loading: true });
     try {
-      const { data } = await api.get(`/posts/${id}`);
-      set({ current: data, loading: false });
+      const [{ data: post }, { data: comments }] = await Promise.all([
+        api.get(`/posts/${id}`),
+        api.get(`/posts/${id}/comments`)
+      ]);
+      set({ current: { ...post, comments }, loading: false });
     } catch {
-      set({ loading: false });
+      if (!background) set({ loading: false });
     }
   },
 
   createPost: async (payload) => {
     const { data } = await api.post('/posts', payload);
-    await get().fetchFeed();
+    await get().fetchFeed(get().lastFilters);
     return data;
   },
 
   updateStatus: async (id, status) => {
-    await api.patch(`/posts/${id}/status`, { status });
-    await get().fetchFeed();
-    if (get().current?.id === id) await get().fetchPost(id);
+    try {
+      await api.patch(`/posts/${id}/status`, { status });
+      await get().fetchFeed(get().lastFilters);
+      if (get().current?.id === id) await get().fetchPost(id, true);
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to update status');
+      if (get().current?.id === id) await get().fetchPost(id); // reset state
+    }
   },
 
   deletePost: async (id) => {
-    await api.delete(`/posts/${id}`);
-    set((s) => ({ feed: s.feed.filter((p) => p.id !== id) }));
+    try {
+      await api.delete(`/posts/${id}`);
+      set((s) => ({ feed: s.feed.filter((p) => p.id !== id) }));
+      toast.success('Post deleted');
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to delete post');
+    }
   },
 
   reactToPost: async (id, emoji) => {
-    await api.post(`/posts/${id}/react`, { emoji });
-    if (get().current?.id === id) await get().fetchPost(id);
-    else await get().fetchFeed();
+    try {
+      await api.post(`/posts/${id}/react`, { emoji });
+      if (get().current?.id === id) await get().fetchPost(id, true);
+      else await get().fetchFeed(get().lastFilters);
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to react');
+    }
   },
 
   optimisticUpdate: (id, updates) => {

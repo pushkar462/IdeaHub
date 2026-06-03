@@ -1,8 +1,9 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuthStore } from '@/stores/auth.store';
 import { usePostStore } from '@/stores/post.store';
 import { useNotificationStore } from '@/stores/notification.store';
+import api from '@/api/axios';
 import PostCard from '@/components/posts/PostCard';
 import Loader from '@/components/shared/Loader';
 import EmptyState from '@/components/shared/EmptyState';
@@ -23,17 +24,30 @@ const StatCard: React.FC<{ icon: string; label: string; value: number; color: st
 
 const DashboardPage: React.FC = () => {
   const { user } = useAuthStore();
-  const { feed, loading, fetchFeed } = usePostStore();
+  const { feed, loading, fetchFeed, reactToPost } = usePostStore();
   const { list: notifications, unreadCount } = useNotificationStore();
+  
+  const [stats, setStats] = useState({
+    totalActive: 0,
+    myActiveTasks: 0,
+    needReview: 0,
+    completed: 0,
+  });
 
   useEffect(() => {
     fetchFeed();
+    
+    // Fetch global real-time stats
+    const fetchStats = async () => {
+      try {
+        const { data } = await api.get('/posts/stats');
+        setStats(data);
+      } catch (err) {
+        console.error('Failed to fetch stats', err);
+      }
+    };
+    fetchStats();
   }, [fetchFeed]);
-
-  const openCount = feed.filter((p) => p.status === 'TODO' || p.status === 'BACKLOG').length;
-  const inProgressCount = feed.filter((p) => p.status === 'IN_PROGRESS').length;
-  const ideaCount = feed.filter((p) => p.category === 'IDEA').length;
-  const assignedCount = feed.filter((p) => p.assigneeId === user?.id).length;
 
   const recent = feed.slice(0, 5);
 
@@ -48,10 +62,10 @@ const DashboardPage: React.FC = () => {
 
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <StatCard icon="🟢" label="Open Issues"    value={openCount}      color="bg-blue-50" />
-        <StatCard icon="⏳" label="In Progress"   value={inProgressCount} color="bg-yellow-50" />
-        <StatCard icon="💡" label="Active Ideas"   value={ideaCount}      color="bg-amber-50" />
-        <StatCard icon="📌" label="Assigned to Me" value={assignedCount}  color="bg-purple-50" />
+        <StatCard icon="📊" label="Total Active Posts" value={stats.totalActive}    color="bg-blue-50" />
+        <StatCard icon="📌" label="Assigned to Me"     value={stats.myActiveTasks}  color="bg-purple-50" />
+        <StatCard icon="👀" label="Needs Review"       value={stats.needReview}     color="bg-yellow-50" />
+        <StatCard icon="✅" label="My Completed"       value={stats.completed}      color="bg-green-50" />
       </div>
 
       {/* Notifications banner */}
@@ -89,7 +103,7 @@ const DashboardPage: React.FC = () => {
         ) : (
           <div className="space-y-3">
             {recent.map((post) => (
-              <PostCard key={post.id} post={post} />
+              <PostCard key={post.id} post={post} onReact={(id, emoji) => reactToPost(id, emoji)} />
             ))}
           </div>
         )}

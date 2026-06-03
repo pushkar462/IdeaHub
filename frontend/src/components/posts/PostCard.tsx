@@ -25,8 +25,8 @@ interface Props {
 }
 
 const PostCard: React.FC<Props> = ({ post, onReact }) => {
-  const totalReactions = post.reactions?.length ?? 0;
-  const commentCount = post._count?.comments ?? post.comments?.length ?? 0;
+  const totalReactions = post.reactionCount ?? post.reactions?.length ?? post._count?.reactions ?? 0;
+  const commentCount = post.replyCount ?? post._count?.comments ?? post.comments?.length ?? 0;
 
   return (
     <div className="card p-5 hover:shadow-lg transition-shadow animate-in">

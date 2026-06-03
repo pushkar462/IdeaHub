@@ -10,7 +10,7 @@ export const createCommentSchema = z.object({
 
 export const updateCommentSchema = z.object({
   params: z.object({
-    id: z.string().regex(/^\\d+$/, 'ID must be numeric'),
+    id: z.string().regex(/^\d+$/, 'ID must be numeric'),
   }).strict(),
   body: z.object({
     content: z.string().min(1, 'Content is required'),

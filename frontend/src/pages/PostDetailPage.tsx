@@ -25,6 +25,7 @@ const PostDetailPage: React.FC = () => {
   const isFounder = user?.role === 'FOUNDER' || user?.role === 'ADMIN';
   const isDepartmentMember = (user as any)?.departmentId === post.departmentId && post.departmentId != null;
   const canEdit = isAuthor || isFounder || isDepartmentMember;
+  const isLocked = post.status === 'DONE';
 
   const handleDelete = async () => {
     if (confirm('Delete this post permanently?')) {
@@ -76,9 +77,10 @@ const PostDetailPage: React.FC = () => {
           <div className="flex items-center gap-3">
             {canEdit && (
               <select
-                className="input py-1 text-xs w-auto bg-gray-50"
+                className="input py-1 text-xs w-auto bg-gray-50 disabled:cursor-not-allowed disabled:opacity-75"
                 value={post.status}
                 onChange={handleStatusChange}
+                disabled={isLocked && !isFounder}
               >
                 <option value="BACKLOG">Backlog</option>
                 <option value="TODO">To Do</option>
@@ -88,7 +90,7 @@ const PostDetailPage: React.FC = () => {
                 <option value="DONE">Done</option>
               </select>
             )}
-            {canEdit && (
+            {canEdit && (!isLocked || isFounder) && (
               <button onClick={handleDelete} className="text-xs text-red-500 hover:underline">
                 Delete
               </button>
@@ -139,9 +141,12 @@ const PostDetailPage: React.FC = () => {
               </div>
             )}
             <button
-              onClick={() => reactToPost(post.id, '👍')}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface hover:bg-surface-hover
-                         transition-colors border border-surface-border text-sm font-medium text-gray-700"
+              onClick={() => {
+                if (!isLocked) reactToPost(post.id, '👍');
+              }}
+              disabled={isLocked}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors
+                ${isLocked ? 'bg-gray-50 border-gray-200 text-gray-400 cursor-not-allowed' : 'bg-surface hover:bg-surface-hover border-surface-border text-gray-700'}`}
             >
               👍 <span>{totalReactions}</span>
             </button>
@@ -150,7 +155,7 @@ const PostDetailPage: React.FC = () => {
       </div>
 
       {/* AI Summary Section */}
-      <AISummary postId={post.id} initialSummary={post.workflowMetrics?.aiSummaryCache} />
+      <AISummary postId={post.id} initialSummary={post.workflowMetrics?.aiSummaryCache} isLocked={isLocked} />
 
       {/* Discussion Thread */}
       <div className="card p-6 lg:p-8">
@@ -162,7 +167,8 @@ const PostDetailPage: React.FC = () => {
         <CommentThread
           comments={post.comments ?? []}
           postId={post.id}
-          onRefresh={() => fetchPost(post.id)}
+          onRefresh={() => fetchPost(post.id, true)}
+          isLocked={isLocked}
         />
       </div>
     </div>
