@@ -25,11 +25,13 @@ enum PostCategory {
   DISCUSSION
 }
 
-enum PostStatus {
-  OPEN
+enum WorkflowStatus {
+  BACKLOG
+  TODO
   IN_PROGRESS
-  RESOLVED
-  ARCHIVED
+  IN_REVIEW
+  BLOCKED
+  DONE
 }
 
 enum Priority {
@@ -38,64 +40,118 @@ enum Priority {
   HIGH
 }
 
-model User {
-  id            Int            @id @default(autoincrement())
-  email         String         @unique
-  passwordHash  String
-  name          String         @unique
-  avatarUrl     String?
-  bio           String?
-  role          Role
-  createdAt     DateTime       @default(now())
+model Department {
+  id          Int     @id @default(autoincrement())
+  name        String  @unique
+  slug        String  @unique // Slugs should remain immutable to prevent broken frontend routing
+  description String?
 
-  posts         Post[]         @relation("AuthorPosts")
-  assignedPosts Post[]         @relation("AssigneePosts")
+  createdAt DateTime @default(now())
+
+  users User[]
+  posts Post[]
+
+  @@index([slug])
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  email        String   @unique
+  passwordHash String
+  name         String   @unique
+  avatarUrl    String?
+  bio          String?
+  role         Role
+  createdAt    DateTime @default(now())
+
+  // Phase 3B: MVP Department Ownership. Future: join table for multi-dept
+  departmentId Int?
+  department   Department? @relation(fields: [departmentId], references: [id])
+
+  posts         Post[]     @relation("AuthorPosts")
+  assignedPosts Post[]     @relation("AssigneePosts")
   comments      Comment[]
   reactions     Reaction[]
-  notifications Notification[]
+
+  // Notifications
+  notifications     Notification[] @relation("NotificationsReceived")
+  notificationsSent Notification[] @relation("NotificationActor")
+
+  // Mentions
+  mentionsGiven    Mention[] @relation("MentionsGiven")
+  mentionsReceived Mention[] @relation("MentionsReceived")
+
+  // Audit Logs
+  auditLogs AuditLog[] @relation("AuditLogsActor")
 }
 
 model Post {
-  id          Int          @id @default(autoincrement())
+  id          Int            @id @default(autoincrement())
   title       String
   description String
   category    PostCategory
-  status      PostStatus   @default(OPEN)
-  priority    Priority     @default(MEDIUM)
-  tags        String[]     @default([])
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  status      WorkflowStatus @default(BACKLOG)
+  priority    Priority       @default(MEDIUM)
+  tags        String[]       @default([])
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
 
-  authorId    Int
-  author      User         @relation("AuthorPosts", fields: [authorId], references: [id])
-  assigneeId  Int?
-  assignee    User?        @relation("AssigneePosts", fields: [assigneeId], references: [id])
+  authorId   Int
+  author     User  @relation("AuthorPosts", fields: [authorId], references: [id])
+  assigneeId Int?
+  assignee   User? @relation("AssigneePosts", fields: [assigneeId], references: [id])
 
-  comments    Comment[]
-  reactions   Reaction[]
-  attachments Attachment[]
+  // Phase 3B: Department Workflow routing
+  departmentId Int?
+  department   Department? @relation(fields: [departmentId], references: [id])
+
+  comments        Comment[]
+  reactions       Reaction[]
+  attachments     Attachment[]
+  mentions        Mention[]
+  notifications   Notification[]
+  auditLogs       AuditLog[]       @relation("PostAuditLogs")
+  workflowMetrics WorkflowMetrics?
+
+  @@unique([createdAt, id])
+  @@index([createdAt])
+  @@index([status])
+  @@index([priority])
+  @@index([category])
+  @@index([authorId])
+  @@index([assigneeId])
+  // Phase 3B Enterprise Indexing
+  @@index([departmentId, status])
+  @@index([assigneeId, status])
+  @@index([departmentId, createdAt])
 }
 
 model Comment {
-  id        Int        @id @default(autoincrement())
+  id        Int      @id @default(autoincrement())
   content   String
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  authorId  Int
-  author    User       @relation(fields: [authorId], references: [id])
-  postId    Int
-  post      Post       @relation(fields: [postId], references: [id], onDelete: Cascade)
-  parentId  Int?
-  parent    Comment?   @relation("Replies", fields: [parentId], references: [id])
-  replies   Comment[]  @relation("Replies")
+  authorId Int
+  author   User      @relation(fields: [authorId], references: [id])
+  postId   Int
+  post     Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  parentId Int?
+  parent   Comment?  @relation("Replies", fields: [parentId], references: [id])
+  replies  Comment[] @relation("Replies")
 
-  reactions Reaction[]
+  reactions     Reaction[]
+  mentions      Mention[]
+  notifications Notification[]
+
+  @@unique([createdAt, id])
+  @@index([postId, createdAt, id])
+  @@index([parentId, createdAt, id])
 }
 
 model Reaction {
-  id        Int      @id @default(autoincrement())
-  emoji     String   @default("👍")
+  id    Int    @id @default(autoincrement())
+  emoji String @default("👍")
 
   userId    Int
   user      User     @relation(fields: [userId], references: [id])
@@ -117,13 +173,157 @@ model Attachment {
   post     Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
 }
 
-model Notification {
-  id        Int      @id @default(autoincrement())
-  type      String
-  message   String
-  read      Boolean  @default(false)
+enum NotificationType {
+  MENTION
+  ASSIGNMENT
+  COMMENT_REPLY
+  POST_UPDATE
+}
+
+model Mention {
+  id            Int @id @default(autoincrement())
+  mentionedById Int
+  mentionedToId Int
+
+  postId    Int?
+  commentId Int?
+
   createdAt DateTime @default(now())
 
-  userId    Int
-  user      User     @relation(fields: [userId], references: [id])
+  mentionedBy User     @relation("MentionsGiven", fields: [mentionedById], references: [id])
+  mentionedTo User     @relation("MentionsReceived", fields: [mentionedToId], references: [id])
+  post        Post?    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  comment     Comment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  // Prevent duplicate mentions natively
+  @@unique([mentionedToId, postId])
+  @@unique([mentionedToId, commentId])
+  @@index([mentionedToId, createdAt])
+}
+
+model Notification {
+  id        Int              @id @default(autoincrement())
+  type      NotificationType
+  metadata  Json? // Stores dynamic references instead of hardcoded UI strings
+  readAt    DateTime? // Replaces `read Boolean` for analytics and activity tracking
+  createdAt DateTime         @default(now())
+
+  userId Int
+  user   User @relation("NotificationsReceived", fields: [userId], references: [id])
+
+  // Context metadata for frontend routing
+  actorId   Int?
+  actor     User?    @relation("NotificationActor", fields: [actorId], references: [id])
+  postId    Int?
+  post      Post?    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  commentId Int?
+  comment   Comment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  // Fast feed queries using our standard deterministic pagination signature
+  @@index([userId, createdAt, id])
+  @@index([userId, readAt])
+}
+
+// ============================================
+// PHASE 4: AUDIT LOGS
+// ============================================
+
+enum AuditActionType {
+  POST_CREATED
+  POST_UPDATED
+  STATUS_CHANGED
+  ASSIGNED
+  UNASSIGNED
+  DEPARTMENT_CHANGED
+  COMMENT_CREATED
+  COMMENT_DELETED
+  ATTACHMENT_UPLOADED
+}
+
+enum AuditEntityType {
+  POST
+  COMMENT
+  ATTACHMENT
+  WORKFLOW
+}
+
+model AuditLog {
+  id String @id @default(cuid())
+
+  actorId Int
+  actor   User @relation("AuditLogsActor", fields: [actorId], references: [id])
+
+  postId Int?
+  post   Post? @relation("PostAuditLogs", fields: [postId], references: [id], onDelete: Cascade)
+
+  actionType AuditActionType
+  entityType AuditEntityType
+  entityId   Int
+
+  // STRICTLY BOUNDED JSON (Deltas only)
+  metadata Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([postId, createdAt, id])
+  @@index([actorId, createdAt])
+  @@index([actionType, createdAt])
+}
+
+// ============================================
+// PHASE 5: SLA METRICS & RBAC
+// ============================================
+
+enum SLAStatus {
+  HEALTHY
+  AT_RISK
+  BREACHED
+}
+
+model WorkflowMetrics {
+  id String @id @default(cuid())
+
+  postId Int  @unique
+  post   Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  // Absolute timestamps
+  firstResponseAt        DateTime?
+  completedAt            DateTime?
+  currentStatusStartedAt DateTime? // Active duration tracking
+
+  // Accumulated durations (seconds)
+  totalTimeInTodo     Int @default(0)
+  totalTimeInProgress Int @default(0)
+  totalTimeInReview   Int @default(0)
+  totalTimeBlocked    Int @default(0)
+
+  slaStatus SLAStatus @default(HEALTHY)
+
+  // Phase 6: AI Caching
+  aiSummaryCache       Json?
+  aiSummaryGeneratedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([slaStatus])
+}
+
+model Permission {
+  id          Int     @id @default(autoincrement())
+  key         String  @unique // e.g., 'workflow.assign', 'analytics.view'
+  description String?
+
+  rolePermissions RolePermission[]
+
+  createdAt DateTime @default(now())
+}
+
+model RolePermission {
+  role         Role
+  permissionId Int
+
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([role, permissionId])
 }

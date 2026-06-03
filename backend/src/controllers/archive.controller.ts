@@ -1,11 +1,13 @@
 import { Request, Response } from 'express';
+import { StatusCodes } from 'http-status-codes';
 import prisma from '../config/db';
+import { successResponse } from '../utils/response.util';
 
 /* ---------- GET ARCHIVE ---------- */
 export const getArchive = async (req: Request, res: Response) => {
   const { search, category } = req.query;
 
-  const where: any = { status: 'ARCHIVED' };
+  const where: any = { status: 'DONE' };
 
   if (search) {
     where.OR = [
@@ -24,7 +26,7 @@ export const getArchive = async (req: Request, res: Response) => {
     orderBy: { updatedAt: 'desc' },
   });
 
-  return res.json(posts);
+  return successResponse(res, 'Archive retrieved', posts);
 };
 
 /* ---------- ARCHIVE A POST ---------- */
@@ -41,7 +43,7 @@ export const archivePost = async (req: Request, res: Response) => {
 
   const updated = await prisma.post.update({
     where: { id },
-    data: { status: 'ARCHIVED' },
+    data: { status: 'DONE' },
   });
-  return res.json(updated);
+  return successResponse(res, 'Post archived', updated);
 };

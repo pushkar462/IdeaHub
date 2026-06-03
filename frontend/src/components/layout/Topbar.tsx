@@ -15,7 +15,7 @@ const Topbar: React.FC = () => {
   const { pathname } = useLocation();
   const [modalOpen, setModalOpen] = useState(false);
 
-  const title = PAGE_TITLES[pathname] ?? 'CollabHub';
+  const title = PAGE_TITLES[pathname] ?? 'IdeaHub';
 
   return (
     <>

@@ -6,6 +6,7 @@ import Loader from '@/components/shared/Loader';
 import Avatar from '@/components/shared/Avatar';
 import StatusBadge from '@/components/posts/StatusBadge';
 import CommentThread from '@/components/posts/CommentThread';
+import AISummary from '@/components/posts/AISummary';
 
 const PostDetailPage: React.FC = () => {
   const { id } = useParams();
@@ -22,7 +23,9 @@ const PostDetailPage: React.FC = () => {
 
   const isAuthor = user?.id === post.authorId;
   const isFounder = user?.role === 'FOUNDER' || user?.role === 'ADMIN';
-  const canEdit = isAuthor || isFounder;
+  const isDepartmentMember = (user as any)?.departmentId === post.departmentId && post.departmentId != null;
+  const canEdit = isAuthor || isFounder || isDepartmentMember;
+  const isLocked = post.status === 'DONE';
 
   const handleDelete = async () => {
     if (confirm('Delete this post permanently?')) {
@@ -48,25 +51,46 @@ const PostDetailPage: React.FC = () => {
       <div className="card p-6 lg:p-8 animate-in">
         {/* Header Metadata */}
         <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <span className="badge bg-gray-100 text-gray-600">{post.category.replace('_', ' ')}</span>
             <StatusBadge status={post.status} />
             <span className="text-xs font-medium text-gray-400">PRIORITY: {post.priority}</span>
+            
+            {post.department && (
+              <span className="badge bg-purple-100 text-purple-700 border border-purple-200">
+                {post.department.name}
+              </span>
+            )}
+
+            {post.workflowMetrics?.slaStatus === 'BREACHED' && (
+              <span className="badge bg-red-100 text-red-700 animate-pulse border border-red-300">
+                🚨 SLA BREACHED
+              </span>
+            )}
+            
+            {post.workflowMetrics?.slaStatus === 'AT_RISK' && (
+              <span className="badge bg-orange-100 text-orange-700 border border-orange-300">
+                ⚠️ SLA AT RISK
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-3">
             {canEdit && (
               <select
-                className="input py-1 text-xs w-auto bg-gray-50"
+                className="input py-1 text-xs w-auto bg-gray-50 disabled:cursor-not-allowed disabled:opacity-75"
                 value={post.status}
                 onChange={handleStatusChange}
+                disabled={isLocked && !isFounder}
               >
-                <option value="OPEN">Open</option>
+                <option value="BACKLOG">Backlog</option>
+                <option value="TODO">To Do</option>
                 <option value="IN_PROGRESS">In Progress</option>
-                <option value="RESOLVED">Resolved</option>
-                <option value="ARCHIVED">Archived</option>
+                <option value="IN_REVIEW">In Review</option>
+                <option value="BLOCKED">Blocked</option>
+                <option value="DONE">Done</option>
               </select>
             )}
-            {canEdit && (
+            {canEdit && (!isLocked || isFounder) && (
               <button onClick={handleDelete} className="text-xs text-red-500 hover:underline">
                 Delete
               </button>
@@ -117,15 +141,21 @@ const PostDetailPage: React.FC = () => {
               </div>
             )}
             <button
-              onClick={() => reactToPost(post.id, '👍')}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface hover:bg-surface-hover
-                         transition-colors border border-surface-border text-sm font-medium text-gray-700"
+              onClick={() => {
+                if (!isLocked) reactToPost(post.id, '👍');
+              }}
+              disabled={isLocked}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors
+                ${isLocked ? 'bg-gray-50 border-gray-200 text-gray-400 cursor-not-allowed' : 'bg-surface hover:bg-surface-hover border-surface-border text-gray-700'}`}
             >
               👍 <span>{totalReactions}</span>
             </button>
           </div>
         </div>
       </div>
+
+      {/* AI Summary Section */}
+      <AISummary postId={post.id} initialSummary={post.workflowMetrics?.aiSummaryCache} isLocked={isLocked} />
 
       {/* Discussion Thread */}
       <div className="card p-6 lg:p-8">
@@ -137,7 +167,8 @@ const PostDetailPage: React.FC = () => {
         <CommentThread
           comments={post.comments ?? []}
           postId={post.id}
-          onRefresh={() => fetchPost(post.id)}
+          onRefresh={() => fetchPost(post.id, true)}
+          isLocked={isLocked}
         />
       </div>
     </div>

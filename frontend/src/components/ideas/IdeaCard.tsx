@@ -17,9 +17,14 @@ const IdeaCard: React.FC<Props> = ({ post, onApprove, onReact }) => {
   return (
     <div className="card p-5 hover:shadow-lg transition-shadow animate-in">
       <div className="flex items-start justify-between mb-3">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <span className="text-lg">💡</span>
           <StatusBadge status={post.status} />
+          {post.department && (
+            <span className="badge bg-purple-100 text-purple-700 border border-purple-200">
+              {post.department.name}
+            </span>
+          )}
         </div>
         <span className="text-xs text-gray-400">{new Date(post.createdAt).toLocaleDateString()}</span>
       </div>
@@ -51,7 +56,7 @@ const IdeaCard: React.FC<Props> = ({ post, onApprove, onReact }) => {
           >
             👍 <span>{thumbsUp}</span>
           </button>
-          {onApprove && post.status === 'OPEN' && (
+          {onApprove && (post.status === 'TODO' || post.status === 'BACKLOG') && (
             <button
               onClick={() => onApprove(post.id)}
               className="btn-primary text-xs py-1 px-3"

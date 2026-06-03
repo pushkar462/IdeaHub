@@ -1,31 +1,26 @@
 import http from 'http';
-import { Server as SocketIOServer } from 'socket.io';
-import dotenv from 'dotenv';
+import './config/env.config'; // Fails fast if env vars are missing
+import { config } from './config/env.config';
 import app from './app';
+import { initializeSocketServer } from './socket/socket.server';
+import { initializeSocketEventHandlers } from './socket/socket.events';
+import './services/analytics/workflow-metrics.service'; // Init metric listeners
 
-dotenv.config();
-
-const PORT = process.env.PORT || 4000;
+const PORT = config.PORT;
 
 const httpServer = http.createServer(app);
 
-export const io = new SocketIOServer(httpServer, {
-  cors: { origin: '*', methods: ['GET', 'POST'] },
-});
+// Initialize modular websocket architecture
+initializeSocketServer(httpServer);
 
-io.on('connection', (socket) => {
-  console.log('🟢 Socket connected:', socket.id);
+// Boot up internal event listeners that bridge to sockets
+initializeSocketEventHandlers();
 
-  // Allow users to join their own room for targeted notifications
-  socket.on('join', (userId: number) => {
-    socket.join(`user_${userId}`);
-    console.log(`User ${userId} joined their notification room`);
-  });
-
-  socket.on('disconnect', () => {
-    console.log('🔴 Socket disconnected:', socket.id);
-  });
-});
+// Boot up BullMQ Workers and Event Bridges
+import { startWorker } from './jobs/worker';
+import { startEventBridge } from './services/events/event-to-queue.bridge';
+startWorker();
+startEventBridge();
 
 httpServer.listen(PORT, () => {
   console.log(`🚀 Server running at http://localhost:${PORT}`);

@@ -1,23 +1,42 @@
 import { Request, Response } from 'express';
+import { StatusCodes } from 'http-status-codes';
 import prisma from '../config/db';
-import { extractMentions } from '../utils/mention';
-import { createNotification } from '../services/notification.service';
+import { AppError } from '../utils/AppError';
+import { successResponse } from '../utils/response.util';
+
+import { feedService } from '../services/feed.service';
+
+/* ---------- GET COMMENT REPLIES (PAGINATED) ---------- */
+export const getCommentReplies = async (req: Request, res: Response) => {
+  const commentId = Number(req.params.id);
+  const query = req.query as any;
+
+  if (isNaN(commentId)) {
+    throw new AppError('Invalid comment ID', StatusCodes.BAD_REQUEST, 'INVALID_ID');
+  }
+
+  const result = await feedService.getCommentReplies(commentId, query.cursor, query.limit);
+
+  return successResponse(res, 'Replies retrieved', result.items, {
+    nextCursor: result.nextCursor,
+    hasMore: result.hasMore
+  });
+};
+
+import { mentionService } from '../services/mention.service';
+import { notificationService } from '../services/notification.service';
 
 /* ---------- CREATE COMMENT ---------- */
 export const createComment = async (req: Request, res: Response) => {
   const { postId, content, parentId } = req.body;
   const authorId = req.user!.id;
 
-  if (!postId || !content) {
-    return res.status(400).json({ message: 'postId and content are required' });
-  }
-
   const comment = await prisma.comment.create({
     data: {
-      postId: Number(postId),
+      postId, // Zod transforms this to Number
       authorId,
       content,
-      parentId: parentId ? Number(parentId) : undefined,
+      parentId, // Zod transforms this to Number or undefined
     },
     include: {
       author: { select: { id: true, name: true, role: true, avatarUrl: true } },
@@ -25,42 +44,39 @@ export const createComment = async (req: Request, res: Response) => {
     },
   });
 
-  // Mention notifications
-  const mentions = extractMentions(content);
-  for (const username of mentions) {
-    const mentioned = await prisma.user.findUnique({ where: { name: username } });
-    if (mentioned && mentioned.id !== authorId) {
-      await createNotification(
-        mentioned.id,
-        'tag',
-        `${req.user!.name} mentioned you in a comment`
-      );
-    }
-  }
+  // Phase 3A: Process mentions safely using transactions and deduplication
+  await mentionService.processMentions({
+    text: content,
+    authorId,
+    commentId: comment.id,
+  });
 
-  // Notify post author
-  const post = await prisma.post.findUnique({ where: { id: Number(postId) } });
-  if (post && post.authorId !== authorId) {
-    await createNotification(
-      post.authorId,
-      'reply',
-      `${req.user!.name} commented on your post "${post.title}"`
-    );
-  }
-
-  // Notify parent comment author if this is a reply
+  // Phase 3A: Notify parent comment author if this is a reply
   if (parentId) {
-    const parent = await prisma.comment.findUnique({ where: { id: Number(parentId) } });
+    const parent = await prisma.comment.findUnique({ where: { id: parentId } });
     if (parent && parent.authorId !== authorId) {
-      await createNotification(
-        parent.authorId,
-        'reply',
-        `${req.user!.name} replied to your comment`
-      );
+      await notificationService.createNotification({
+        userId: parent.authorId,
+        type: 'COMMENT_REPLY',
+        actorId: authorId,
+        commentId: comment.id,
+      }, undefined);
+    }
+  } else {
+    // Notify post author if this is a top-level comment
+    const post = await prisma.post.findUnique({ where: { id: postId } });
+    if (post && post.authorId !== authorId) {
+      await notificationService.createNotification({
+        userId: post.authorId,
+        type: 'COMMENT_REPLY', // Top level comments are treated as replies to the post author
+        actorId: authorId,
+        postId: post.id,
+        commentId: comment.id,
+      }, undefined);
     }
   }
 
-  return res.status(201).json(comment);
+  return successResponse(res, 'Comment created successfully', comment, {}, StatusCodes.CREATED);
 };
 
 /* ---------- UPDATE COMMENT ---------- */
@@ -69,9 +85,13 @@ export const updateComment = async (req: Request, res: Response) => {
   const { content } = req.body;
 
   const comment = await prisma.comment.findUnique({ where: { id } });
-  if (!comment) return res.status(404).json({ message: 'Comment not found' });
+  
+  if (!comment) {
+    throw new AppError('Comment not found', StatusCodes.NOT_FOUND, 'COMMENT_NOT_FOUND');
+  }
+  
   if (comment.authorId !== req.user!.id && req.user!.role !== 'ADMIN') {
-    return res.status(403).json({ message: 'Forbidden' });
+    throw new AppError('Forbidden. You cannot edit this comment.', StatusCodes.FORBIDDEN, 'FORBIDDEN');
   }
 
   const updated = await prisma.comment.update({
@@ -82,19 +102,24 @@ export const updateComment = async (req: Request, res: Response) => {
     },
   });
 
-  return res.json(updated);
+  return successResponse(res, 'Comment updated', updated);
 };
 
 /* ---------- DELETE COMMENT ---------- */
 export const deleteComment = async (req: Request, res: Response) => {
   const id = Number(req.params.id);
   const comment = await prisma.comment.findUnique({ where: { id } });
-  if (!comment) return res.status(404).json({ message: 'Comment not found' });
-  if (comment.authorId !== req.user!.id && req.user!.role !== 'FOUNDER' && req.user!.role !== 'ADMIN') {
-    return res.status(403).json({ message: 'Forbidden' });
+  
+  if (!comment) {
+    throw new AppError('Comment not found', StatusCodes.NOT_FOUND, 'COMMENT_NOT_FOUND');
   }
+  
+  if (comment.authorId !== req.user!.id && req.user!.role !== 'FOUNDER' && req.user!.role !== 'ADMIN') {
+    throw new AppError('Forbidden. You cannot delete this comment.', StatusCodes.FORBIDDEN, 'FORBIDDEN');
+  }
+  
   await prisma.comment.delete({ where: { id } });
-  return res.status(204).send();
+  return successResponse(res, 'Comment deleted successfully');
 };
 
 /* ---------- REACT TO COMMENT ---------- */
@@ -109,11 +134,11 @@ export const reactToComment = async (req: Request, res: Response) => {
 
   if (existing) {
     await prisma.reaction.delete({ where: { id: existing.id } });
-    return res.json({ removed: true });
+    return successResponse(res, 'Reaction removed', { removed: true });
   } else {
     const reaction = await prisma.reaction.create({
       data: { userId, commentId, emoji },
     });
-    return res.status(201).json(reaction);
+    return successResponse(res, 'Reaction added', reaction, {}, StatusCodes.CREATED);
   }
 };

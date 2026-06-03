@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import api from '@/api/axios';
 import { User } from '@/types';
+import { SocketManager } from '@/lib/socket/socket-manager';
 
 interface AuthState {
   user: User | null;
@@ -18,7 +19,7 @@ interface AuthState {
   fetchMe: () => Promise<void>;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   token: localStorage.getItem('token'),
   loading: false,
@@ -28,6 +29,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       const { data } = await api.post('/auth/login', { email, password });
       localStorage.setItem('token', data.token);
+      SocketManager.connect(data.token);
       set({ token: data.token, user: data.user, loading: false });
     } catch (err) {
       set({ loading: false });
@@ -40,6 +42,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       const { data } = await api.post('/auth/register', formData);
       localStorage.setItem('token', data.token);
+      SocketManager.connect(data.token);
       set({ token: data.token, user: data.user, loading: false });
     } catch (err) {
       set({ loading: false });
@@ -49,15 +52,19 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   logout: () => {
     localStorage.removeItem('token');
+    SocketManager.disconnect();
     set({ token: null, user: null });
   },
 
   fetchMe: async () => {
     try {
       const { data } = await api.get('/auth/me');
+      const token = get().token;
+      if (token) SocketManager.connect(token);
       set({ user: data });
     } catch {
       localStorage.removeItem('token');
+      SocketManager.disconnect();
       set({ token: null, user: null });
     }
   },

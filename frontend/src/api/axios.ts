@@ -12,13 +12,24 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Auto-redirect to /login on 401
+// Auto-unwrap backend envelope and redirect on 401
 api.interceptors.response.use(
-  (res) => res,
+  (res) => {
+    // Our backend uses successResponse util which wraps the actual payload in a 'data' field.
+    // Unwrapping it here saves us from doing data.data in every store.
+    if (res.data && res.data.success !== undefined && res.data.data !== undefined) {
+      (res as any).meta = res.data.meta; // Preserve meta (like nextCursor) on the response object
+      res.data = res.data.data;
+    }
+    return res;
+  },
   (err) => {
     if (err.response?.status === 401) {
-      localStorage.removeItem('token');
-      window.location.href = '/login';
+      const isAuthRoute = err.config?.url?.includes('/auth/login') || err.config?.url?.includes('/auth/register');
+      if (!isAuthRoute) {
+        localStorage.removeItem('token');
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(err);
   }

@@ -39,7 +39,7 @@ const RegisterPage: React.FC = () => {
                           text-white font-bold text-2xl mx-auto mb-4 shadow-lg">
             C
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">Join CollabHub</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Join IdeaHub</h1>
           <p className="text-gray-500 mt-1">Create your team account</p>
         </div>
 

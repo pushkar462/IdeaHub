@@ -25,8 +25,8 @@ interface Props {
 }
 
 const PostCard: React.FC<Props> = ({ post, onReact }) => {
-  const totalReactions = post.reactions?.length ?? 0;
-  const commentCount = post._count?.comments ?? post.comments?.length ?? 0;
+  const totalReactions = post.reactionCount ?? post.reactions?.length ?? post._count?.reactions ?? 0;
+  const commentCount = post.replyCount ?? post._count?.comments ?? post.comments?.length ?? 0;
 
   return (
     <div className="card p-5 hover:shadow-lg transition-shadow animate-in">
@@ -42,6 +42,29 @@ const PostCard: React.FC<Props> = ({ post, onReact }) => {
             <span className={`w-2 h-2 rounded-full ${priorityDot[post.priority]}`} />
             {post.priority}
           </span>
+          
+          {post.department && (
+            <span className="badge bg-purple-100 text-purple-700 border border-purple-200">
+              {post.department.name}
+            </span>
+          )}
+
+          {post.assignee && (
+            <span className="badge bg-blue-100 text-blue-700 flex items-center gap-1">
+              <span>👤</span> {post.assignee.name}
+            </span>
+          )}
+
+          {post.workflowMetrics?.slaStatus === 'BREACHED' && (
+            <span className="badge bg-red-100 text-red-700 animate-pulse border border-red-300">
+              🚨 SLA BREACHED
+            </span>
+          )}
+          {post.workflowMetrics?.slaStatus === 'AT_RISK' && (
+            <span className="badge bg-orange-100 text-orange-700 border border-orange-300">
+              ⚠️ SLA AT RISK
+            </span>
+          )}
         </div>
         <span className="text-xs text-gray-400 whitespace-nowrap">
           {new Date(post.createdAt).toLocaleDateString()}

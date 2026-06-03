@@ -9,17 +9,27 @@ import postRoutes from './routes/post.routes';
 import commentRoutes from './routes/comment.routes';
 import notificationRoutes from './routes/notification.routes';
 import archiveRoutes from './routes/archive.routes';
+import intelligenceRoutes from './routes/v1/intelligence.route';
 import { errorHandler } from './middleware/error.middleware';
+import { tracingMiddleware } from './middleware/tracing.middleware';
 
 const app = express();
 
+app.use(tracingMiddleware());
 app.use(cors({ origin: '*', credentials: true }));
 app.use(helmet());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Serve uploaded files
-app.use('/uploads', express.static(path.resolve(__dirname, '../uploads')));
+// Serve uploaded files securely
+app.use('/uploads', express.static(path.resolve(__dirname, '../../uploads'), {
+  setHeaders: (res) => {
+    // Prevent MIME-sniffing
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    // We could force download by default for everything, or conditionally.
+    // Setting nosniff prevents browser from interpreting text/plain as HTML.
+  }
+}));
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -27,6 +37,7 @@ app.use('/api/posts', postRoutes);
 app.use('/api/comments', commentRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/archive', archiveRoutes);
+app.use('/api/intelligence', intelligenceRoutes);
 
 // Health check
 app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
