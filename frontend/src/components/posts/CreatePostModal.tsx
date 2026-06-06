@@ -165,7 +165,7 @@ const CreatePostModal: React.FC<Props> = ({ isOpen, onClose }) => {
             </div>
             <div>
               <div className="flex items-center justify-between">
-                <label className="label mb-0">Assign To</label>
+                <label className="label mb-0">Assign To (Optional)</label>
                 {form.departmentId && (
                   <button
                     type="button"
