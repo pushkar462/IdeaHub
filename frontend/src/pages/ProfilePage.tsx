@@ -44,15 +44,22 @@ const ProfilePage: React.FC = () => {
         if (userToSet) {
           setPostsLoading(true);
           try {
-            // Try the dedicated endpoint first; fall back to feed filter if not yet deployed
             let posts: any[] = [];
             try {
+              // 1st try: dedicated endpoint (works once Render deploys)
               const res = await api.get(`/users/${userToSet.id}/posts`);
               posts = Array.isArray(res.data) ? res.data : [];
             } catch {
-              // /users/:id/posts not deployed yet — fall back
-              const res = await api.get(`/posts`, { params: { authorId: userToSet.id } });
-              posts = Array.isArray(res.data) ? res.data : [];
+              try {
+                // 2nd try: feed with authorId param (works once Render deploys the schema update)
+                const res = await api.get(`/posts`, { params: { authorId: userToSet.id } });
+                posts = Array.isArray(res.data) ? res.data : [];
+              } catch {
+                // 3rd fallback: fetch feed and filter client-side (works on any version of backend)
+                const res = await api.get(`/posts`, { params: { limit: 50 } });
+                const all = Array.isArray(res.data) ? res.data : [];
+                posts = all.filter((p: any) => p.author?.id === userToSet.id);
+              }
             }
             setPosts(posts);
           } catch (err) {

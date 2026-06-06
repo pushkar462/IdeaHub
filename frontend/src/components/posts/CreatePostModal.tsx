@@ -5,6 +5,12 @@ import { useDepartmentStore } from '@/stores/department.store';
 import { MentionsInput, Mention } from 'react-mentions';
 import { fetchUsersForMention } from '@/lib/mentions';
 
+interface TeamMember {
+  id: number;
+  name: string;
+  role: string;
+}
+
 interface Props {
   isOpen: boolean;
   onClose: () => void;
@@ -16,10 +22,15 @@ const PRIORITIES = ['LOW', 'MEDIUM', 'HIGH'];
 const CreatePostModal: React.FC<Props> = ({ isOpen, onClose }) => {
   const { fetchFeed } = usePostStore();
   const { departments, fetchDepartments } = useDepartmentStore();
-  
+  const [users, setUsers] = useState<TeamMember[]>([]);
+
   useEffect(() => {
     if (isOpen) {
       fetchDepartments();
+      api.get('/auth/users').then(res => {
+        const list = Array.isArray(res.data) ? res.data : [];
+        setUsers(list);
+      }).catch(() => {});
     }
   }, [isOpen]);
 
@@ -154,7 +165,7 @@ const CreatePostModal: React.FC<Props> = ({ isOpen, onClose }) => {
             </div>
             <div>
               <div className="flex items-center justify-between">
-                <label className="label mb-0">Assignee ID</label>
+                <label className="label mb-0">Assign To</label>
                 {form.departmentId && (
                   <button
                     type="button"
@@ -177,15 +188,21 @@ const CreatePostModal: React.FC<Props> = ({ isOpen, onClose }) => {
                   </button>
                 )}
               </div>
-              <input
+              <select
                 className="input mt-1"
-                placeholder="Optional User ID"
                 value={form.assigneeId}
                 onChange={(e) => {
                   setForm({ ...form, assigneeId: e.target.value });
-                  setSuggestionReason(''); // clear reason if manually changed
+                  setSuggestionReason('');
                 }}
-              />
+              >
+                <option value="">— Unassigned —</option>
+                {users.map(u => (
+                  <option key={u.id} value={u.id}>
+                    {u.name} ({u.role?.replace('_', '/')})
+                  </option>
+                ))}
+              </select>
               {suggestionReason && (
                 <p className="text-xs text-purple-600 mt-1 flex items-start gap-1">
                   <span>✨</span> {suggestionReason}
