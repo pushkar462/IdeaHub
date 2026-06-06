@@ -33,9 +33,15 @@ export const usePostStore = create<PostState>((set, get) => ({
 
   fetchFeed: async (filters = {}) => {
     set({ loading: true, lastFilters: filters });
+    
+    // Clean empty strings and undefined/null values
+    const cleanFilters = Object.fromEntries(
+      Object.entries(filters).filter(([_, v]) => v !== '' && v !== null && v !== undefined)
+    );
+
     try {
-      const { data } = await api.get('/posts', { params: filters });
-      set({ feed: data, loading: false });
+      const { data } = await api.get('/posts', { params: cleanFilters });
+      set({ feed: Array.isArray(data) ? data : (data?.items || []), loading: false });
     } catch {
       set({ loading: false });
     }
