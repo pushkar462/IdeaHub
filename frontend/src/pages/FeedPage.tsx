@@ -5,9 +5,9 @@ import CreatePostModal from '@/components/posts/CreatePostModal';
 import Loader from '@/components/shared/Loader';
 import EmptyState from '@/components/shared/EmptyState';
 
-const CATEGORIES = ['', 'BUG', 'IMPROVEMENT', 'SUGGESTION', 'FEATURE', 'IDEA', 'DISCUSSION'];
-const STATUSES   = ['', 'BACKLOG', 'TODO', 'IN_PROGRESS', 'IN_REVIEW', 'BLOCKED'];
-const PRIORITIES = ['', 'LOW', 'MEDIUM', 'HIGH'];
+const CATEGORIES = ['BUG', 'IMPROVEMENT', 'SUGGESTION', 'FEATURE', 'IDEA', 'DISCUSSION'];
+const STATUSES   = ['BACKLOG', 'TODO', 'IN_PROGRESS', 'IN_REVIEW', 'BLOCKED', 'DONE'];
+const PRIORITIES = ['LOW', 'MEDIUM', 'HIGH'];
 
 const FeedPage: React.FC = () => {
   const { feed, loading, fetchFeed, reactToPost } = usePostStore();
@@ -21,6 +21,15 @@ const FeedPage: React.FC = () => {
     fetchFeed({ search, category, status, priority });
   }, [search, category, status, priority]);
 
+  const hasActiveFilters = category || status || priority || search;
+
+  const clearAllFilters = () => {
+    setSearch('');
+    setCategory('');
+    setStatus('');
+    setPriority('');
+  };
+
   return (
     <div className="max-w-3xl mx-auto space-y-5">
       {/* Search + Filters */}
@@ -32,34 +41,55 @@ const FeedPage: React.FC = () => {
           onChange={(e) => setSearch(e.target.value)}
         />
         <div className="flex flex-wrap gap-2">
-          <select className="input flex-1 min-w-[120px]" value={category}
+          <select className="input flex-1 min-w-[130px]" value={category}
             onChange={(e) => setCategory(e.target.value)}>
             <option value="">All Categories</option>
-            {CATEGORIES.filter(Boolean).map((c) => (
-              <option key={c} value={c}>{c.replace('_', ' ')}</option>
+            {CATEGORIES.map((c) => (
+              <option key={c} value={c}>{c.charAt(0) + c.slice(1).toLowerCase().replace('_', ' ')}</option>
             ))}
           </select>
-          <select className="input flex-1 min-w-[120px]" value={status}
+          <select className="input flex-1 min-w-[130px]" value={status}
             onChange={(e) => setStatus(e.target.value)}>
             <option value="">All Statuses</option>
-            {STATUSES.filter(Boolean).map((s) => (
-              <option key={s} value={s}>{s.replace('_', ' ')}</option>
+            {STATUSES.map((s) => (
+              <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>
             ))}
           </select>
-          <select className="input flex-1 min-w-[120px]" value={priority}
+          <select className="input flex-1 min-w-[130px]" value={priority}
             onChange={(e) => setPriority(e.target.value)}>
             <option value="">All Priorities</option>
-            {PRIORITIES.filter(Boolean).map((p) => (
+            {PRIORITIES.map((p) => (
               <option key={p} value={p}>{p}</option>
             ))}
           </select>
         </div>
+
+        {/* Active filter chips */}
+        {hasActiveFilters && (
+          <div className="flex flex-wrap items-center gap-2 pt-1">
+            <span className="text-xs text-gray-500">Active filters:</span>
+            {search && (
+              <span className="badge">Search: "{search}" <button onClick={() => setSearch('')} className="ml-1 text-gray-400 hover:text-gray-700">×</button></span>
+            )}
+            {category && (
+              <span className="badge">{category} <button onClick={() => setCategory('')} className="ml-1 text-gray-400 hover:text-gray-700">×</button></span>
+            )}
+            {status && (
+              <span className="badge">{status.replace(/_/g, ' ')} <button onClick={() => setStatus('')} className="ml-1 text-gray-400 hover:text-gray-700">×</button></span>
+            )}
+            {priority && (
+              <span className="badge">{priority} <button onClick={() => setPriority('')} className="ml-1 text-gray-400 hover:text-gray-700">×</button></span>
+            )}
+            <button onClick={clearAllFilters} className="text-xs text-red-400 hover:text-red-600 ml-1 underline">
+              Clear all
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* Results */}
+      {/* Results count */}
       <div className="flex items-center justify-between">
         <p className="text-sm text-gray-500">{feed.length} post{feed.length !== 1 ? 's' : ''}</p>
-        <button onClick={() => setShowModal(true)} className="btn-primary">+ New Post</button>
       </div>
 
       {loading ? (
@@ -68,11 +98,13 @@ const FeedPage: React.FC = () => {
         <EmptyState
           icon="🗒️"
           title="No posts found"
-          description="Try different filters or create the first post!"
+          description={hasActiveFilters ? 'No posts match your filters. Try clearing some.' : 'Be the first to post something!'}
           action={
-            <button onClick={() => setShowModal(true)} className="btn-primary">
-              Create a Post
-            </button>
+            hasActiveFilters ? (
+              <button onClick={clearAllFilters} className="btn-ghost">Clear Filters</button>
+            ) : (
+              <button onClick={() => setShowModal(true)} className="btn-primary">Create a Post</button>
+            )
           }
         />
       ) : (
@@ -93,3 +125,4 @@ const FeedPage: React.FC = () => {
 };
 
 export default FeedPage;
+
