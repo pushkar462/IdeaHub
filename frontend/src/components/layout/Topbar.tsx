@@ -5,7 +5,6 @@ import CreatePostModal from '@/components/posts/CreatePostModal';
 const PAGE_TITLES: Record<string, string> = {
   '/dashboard':     'Dashboard',
   '/feed':          'Product Feed',
-  '/ideas':         'Ideas Space',
   '/archive':       'Memory Archive',
   '/notifications': 'Notifications',
   '/profile':       'Profile',

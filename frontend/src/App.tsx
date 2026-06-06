@@ -7,7 +7,6 @@ import LoginPage from '@/pages/LoginPage';
 import RegisterPage from '@/pages/RegisterPage';
 import DashboardPage from '@/pages/DashboardPage';
 import FeedPage from '@/pages/FeedPage';
-import IdeasPage from '@/pages/IdeasPage';
 import ArchivePage from '@/pages/ArchivePage';
 import NotificationsPage from '@/pages/NotificationsPage';
 import ProfilePage from '@/pages/ProfilePage';
@@ -27,7 +26,6 @@ const App: React.FC = () => (
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/feed" element={<FeedPage />} />
-          <Route path="/ideas" element={<IdeasPage />} />
           <Route path="/archive" element={<ArchivePage />} />
           <Route path="/notifications" element={<NotificationsPage />} />
           <Route path="/profile" element={<ProfilePage />} />

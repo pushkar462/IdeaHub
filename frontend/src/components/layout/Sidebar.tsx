@@ -7,7 +7,6 @@ import Avatar from '@/components/shared/Avatar';
 const NAV = [
   { to: '/dashboard',     icon: '🏠', label: 'Dashboard' },
   { to: '/feed',          icon: '📋', label: 'Feed' },
-  { to: '/ideas',         icon: '💡', label: 'Ideas Space' },
   { to: '/archive',       icon: '🗄️',  label: 'Archive' },
   { to: '/notifications', icon: '🔔', label: 'Notifications' },
   { to: '/profile',       icon: '👤', label: 'Profile' },
