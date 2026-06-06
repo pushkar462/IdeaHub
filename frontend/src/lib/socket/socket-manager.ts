@@ -5,8 +5,16 @@ class SocketManagerClass {
   private isConnected = false;
 
   public connect(token: string) {
-    if (this.isConnected) return;
+    // If already connected with a live socket, skip
+    if (this.isConnected && socket.connected) return;
     
+    // BUG 5 FIX: Always clean up old lifecycle listeners before adding new ones.
+    // Without this, every reconnection attempt adds duplicate listeners which causes
+    // memory leaks and duplicate notification/toast handling.
+    socket.off('connect');
+    socket.off('disconnect');
+    socket.off('connect_error');
+
     // Set authentication token
     socket.auth = { token };
     
@@ -27,11 +35,14 @@ class SocketManagerClass {
 
     socket.on('connect_error', (err) => {
       console.error('Socket connection error:', err.message);
+      this.isConnected = false;
     });
   }
 
   public disconnect() {
-    if (!this.isConnected) return;
+    socket.off('connect');
+    socket.off('disconnect');
+    socket.off('connect_error');
     unbindSocketEvents();
     socket.disconnect();
     this.isConnected = false;

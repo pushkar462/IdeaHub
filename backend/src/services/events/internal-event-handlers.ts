@@ -10,6 +10,14 @@ export const startInternalEventHandlers = () => {
     try {
       const postId = payload.postId;
 
+      // BUG 4 FIX: Skip SLA re-evaluation if this event was emitted by the SLA service itself.
+      // The SLA service emits POST_UPDATED with { changes: { slaStatus } } when it updates the status.
+      // Without this guard, it creates an infinite loop: SLA change → event → SLA re-eval → SLA change → ...
+      const changes = payload.changes || {};
+      if (changes.slaStatus && !changes.status) {
+        return; // This is an SLA-internal event, not a real workflow change
+      }
+
       // Clear existing timeout if any (Debounce)
       if (slaThrottleMap.has(postId)) {
         clearTimeout(slaThrottleMap.get(postId)!);

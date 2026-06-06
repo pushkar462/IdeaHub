@@ -110,7 +110,7 @@ export const getPost = async (req: Request, res: Response) => {
       reactions: true,
       attachments: true,
       department: { select: { id: true, name: true, slug: true } },
-      workflowMetrics: { select: { slaStatus: true, totalTimeBlocked: true } },
+      workflowMetrics: { select: { slaStatus: true, totalTimeBlocked: true, aiSummaryCache: true } },
       _count: { select: { comments: { where: { parentId: null } } } }
     },
   });

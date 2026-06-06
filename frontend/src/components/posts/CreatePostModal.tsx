@@ -30,24 +30,36 @@ const CreatePostModal: React.FC<Props> = ({ isOpen, onClose }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [suggestionReason, setSuggestionReason] = useState('');
+  const [file, setFile] = useState<File | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
-      await api.post('/posts', {
-        title: form.title,
-        description: form.description,
-        category: form.category,
-        priority: form.priority,
-        tags: form.tags ? form.tags.split(',').map((t) => t.trim()).filter(Boolean) : [],
-        assigneeId: form.assigneeId ? Number(form.assigneeId) : undefined,
-        departmentId: form.departmentId ? Number(form.departmentId) : undefined,
+      const payload = new FormData();
+      payload.append('title', form.title);
+      payload.append('description', form.description);
+      payload.append('category', form.category);
+      payload.append('priority', form.priority);
+      
+      if (form.tags) {
+        const tagsArray = form.tags.split(',').map((t) => t.trim()).filter(Boolean);
+        payload.append('tags', JSON.stringify(tagsArray));
+      }
+      
+      if (form.assigneeId) payload.append('assigneeId', form.assigneeId);
+      if (form.departmentId) payload.append('departmentId', form.departmentId);
+      if (file) payload.append('attachment', file);
+
+      await api.post('/posts', payload, {
+        headers: { 'Content-Type': 'multipart/form-data' },
       });
+      
       await fetchFeed();
       onClose();
       setForm({ title: '', description: '', category: 'DISCUSSION', priority: 'MEDIUM', tags: '', assigneeId: '', departmentId: '' });
+      setFile(null);
     } catch (err: any) {
       setError(err.response?.data?.message ?? 'Failed to create post');
     } finally {
@@ -189,6 +201,15 @@ const CreatePostModal: React.FC<Props> = ({ isOpen, onClose }) => {
               placeholder="e.g. auth, api, mobile"
               value={form.tags}
               onChange={(e) => setForm({ ...form, tags: e.target.value })}
+            />
+          </div>
+
+          <div>
+            <label className="label">Attachment (Optional)</label>
+            <input
+              type="file"
+              className="input text-sm p-2"
+              onChange={(e) => setFile(e.target.files?.[0] || null)}
             />
           </div>
 

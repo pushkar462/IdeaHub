@@ -146,9 +146,20 @@ export const getUserById = async (req: Request, res: Response) => {
 };
 
 /* ---------- LIST ALL USERS ---------- */
-export const listUsers = async (_req: Request, res: Response) => {
+export const listUsers = async (req: Request, res: Response) => {
+  const search = req.query.search as string;
+  const where = search ? {
+    name: {
+      contains: search,
+      mode: 'insensitive' as const,
+    }
+  } : {};
+
   const users = await prisma.user.findMany({
+    where,
     select: { id: true, name: true, role: true, avatarUrl: true, email: true },
+    orderBy: { name: 'asc' },
+    take: 10,
   });
   return successResponse(res, 'Users retrieved', users);
 };

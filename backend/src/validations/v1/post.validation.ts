@@ -6,8 +6,20 @@ export const createPostSchema = z.object({
     description: z.string().min(1, 'Description is required'),
     category: z.enum(['BUG', 'FEATURE', 'IMPROVEMENT', 'SUGGESTION', 'IDEA', 'DISCUSSION']).optional(),
     priority: z.enum(['LOW', 'MEDIUM', 'HIGH']).optional(),
-    assigneeId: z.number().int().positive().optional().nullable(),
-    tags: z.array(z.string()).optional(),
+    assigneeId: z.preprocess((val) => (val ? Number(val) : undefined), z.number().int().positive().optional().nullable()),
+    departmentId: z.preprocess((val) => (val ? Number(val) : undefined), z.number().int().positive().optional().nullable()),
+    tags: z.preprocess((val) => {
+      if (!val) return [];
+      if (typeof val === 'string') {
+        try {
+          const parsed = JSON.parse(val);
+          return Array.isArray(parsed) ? parsed : [val];
+        } catch {
+          return val.split(',').map((s) => s.trim()).filter(Boolean);
+        }
+      }
+      return Array.isArray(val) ? val : [String(val)];
+    }, z.array(z.string()).optional()),
   }).strict()
 });
 

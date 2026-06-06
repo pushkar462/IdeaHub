@@ -3,11 +3,10 @@ import { useNotificationStore } from '@/stores/notification.store';
 import EmptyState from '@/components/shared/EmptyState';
 
 const iconMap: Record<string, string> = {
-  tag: '💬',
-  assignment: '📌',
-  reply: '↩️',
-  status_change: '🔄',
-  idea_approved: '✨',
+  MENTION: '💬',
+  ASSIGNMENT: '📌',
+  COMMENT_REPLY: '↩️',
+  POST_UPDATE: '🔄',
 };
 
 const NotificationsPage: React.FC = () => {

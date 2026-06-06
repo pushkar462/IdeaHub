@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { StatusCodes } from 'http-status-codes';
 import prisma from '../config/db';
 import { successResponse } from '../utils/response.util';
+import { AppError } from '../utils/AppError';
 
 /* ---------- GET ARCHIVE ---------- */
 export const getArchive = async (req: Request, res: Response) => {
@@ -34,11 +35,13 @@ export const archivePost = async (req: Request, res: Response) => {
   const id = Number(req.params.id);
 
   const post = await prisma.post.findUnique({ where: { id } });
-  if (!post) return res.status(404).json({ message: 'Post not found' });
+  if (!post) {
+    throw new AppError('Post not found', StatusCodes.NOT_FOUND, 'POST_NOT_FOUND');
+  }
 
   // Only FOUNDER, ADMIN or author can archive
   if (post.authorId !== req.user!.id && req.user!.role !== 'FOUNDER' && req.user!.role !== 'ADMIN') {
-    return res.status(403).json({ message: 'Only the author, Founder, or Admin can archive this post' });
+    throw new AppError('Only the author, Founder, or Admin can archive this post', StatusCodes.FORBIDDEN, 'FORBIDDEN');
   }
 
   const updated = await prisma.post.update({
