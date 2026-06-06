@@ -10,6 +10,7 @@ import commentRoutes from './routes/comment.routes';
 import notificationRoutes from './routes/notification.routes';
 import archiveRoutes from './routes/archive.routes';
 import intelligenceRoutes from './routes/v1/intelligence.route';
+import departmentRoutes from './routes/v1/department.route';
 import { errorHandler } from './middleware/error.middleware';
 import { tracingMiddleware } from './middleware/tracing.middleware';
 
@@ -38,6 +39,7 @@ app.use('/api/comments', commentRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/archive', archiveRoutes);
 app.use('/api/intelligence', intelligenceRoutes);
+app.use('/api/departments', departmentRoutes);
 
 // Health check
 app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));

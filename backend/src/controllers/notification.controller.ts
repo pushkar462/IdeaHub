@@ -6,9 +6,43 @@ import { successResponse } from '../utils/response.util';
 export const getMyNotifications = async (req: Request, res: Response) => {
   const notifications = await prisma.notification.findMany({
     where: { userId: req.user!.id },
+    include: {
+      actor: { select: { name: true } },
+      post: { select: { title: true } },
+    },
     orderBy: { createdAt: 'desc' },
   });
-  return successResponse(res, 'Notifications retrieved', notifications);
+
+  const formatted = notifications.map(n => {
+    let message = 'You have a new notification';
+    const actorName = n.actor?.name || 'Someone';
+    
+    switch (n.type) {
+      case 'MENTION':
+        message = `${actorName} mentioned you in a comment.`;
+        break;
+      case 'ASSIGNMENT':
+        message = `${actorName} assigned you to a post.`;
+        break;
+      case 'COMMENT_REPLY':
+        message = `${actorName} replied to your comment.`;
+        break;
+      case 'POST_UPDATE':
+        message = `${actorName} updated a post.`;
+        break;
+    }
+
+    return {
+      id: n.id,
+      type: n.type,
+      message,
+      read: n.readAt !== null,
+      createdAt: n.createdAt,
+      userId: n.userId,
+    };
+  });
+
+  return successResponse(res, 'Notifications retrieved', formatted);
 };
 
 /* ---------- MARK NOTIFICATION AS READ ---------- */

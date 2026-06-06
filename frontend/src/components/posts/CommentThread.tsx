@@ -5,6 +5,7 @@ import api from '@/api/axios';
 import { useAuthStore } from '@/stores/auth.store';
 import { MentionsInput, Mention } from 'react-mentions';
 import { fetchUsersForMention } from '@/lib/mentions';
+import RenderMentionText from '@/components/shared/RenderMentionText';
 
 interface Props {
   comments: Comment[];
@@ -75,7 +76,7 @@ const CommentItem: React.FC<{
               </div>
             </div>
           ) : (
-            <p className="text-sm text-gray-700 whitespace-pre-wrap">{comment.content}</p>
+            <p className="text-sm text-gray-700 whitespace-pre-wrap"><RenderMentionText content={comment.content} /></p>
           )}
 
           {/* Reactions */}

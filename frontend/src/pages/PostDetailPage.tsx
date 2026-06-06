@@ -7,6 +7,7 @@ import Avatar from '@/components/shared/Avatar';
 import StatusBadge from '@/components/posts/StatusBadge';
 import CommentThread from '@/components/posts/CommentThread';
 import AISummary from '@/components/posts/AISummary';
+import RenderMentionText from '@/components/shared/RenderMentionText';
 
 const PostDetailPage: React.FC = () => {
   const { id } = useParams();
@@ -103,7 +104,7 @@ const PostDetailPage: React.FC = () => {
           {post.title}
         </h1>
         <div className="prose max-w-none text-gray-700 whitespace-pre-wrap mb-8">
-          {post.description}
+          <RenderMentionText content={post.description} />
         </div>
 
         {/* Tags */}

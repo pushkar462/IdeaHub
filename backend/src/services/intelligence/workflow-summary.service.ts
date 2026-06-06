@@ -25,6 +25,9 @@ export interface WorkflowSummaryResult {
 }
 
 export class WorkflowSummaryService {
+  // In-memory locking mechanism to prevent parallel generations for the same post
+  private inFlightSummaries = new Map<number, Promise<WorkflowSummaryResult>>();
+
   /**
    * Prepares a bounded context object for future LLM summarization.
    * STRICT CONTEXT BOUNDING: Prevents massive prompt sizes and AI cost explosions.
@@ -72,10 +75,29 @@ export class WorkflowSummaryService {
   }
 
   /**
+   * Wrapper to deduplicate rapid parallel requests using an in-memory Promise map.
+   */
+  public async generateSummaryIdempotent(postId: number): Promise<WorkflowSummaryResult> {
+    if (this.inFlightSummaries.has(postId)) {
+      logger.info({ postId }, 'Summary generation already in-flight. Attaching to existing promise.');
+      return this.inFlightSummaries.get(postId)!;
+    }
+
+    const generationPromise = this._generateSummaryInternal(postId);
+    this.inFlightSummaries.set(postId, generationPromise);
+
+    try {
+      return await generationPromise;
+    } finally {
+      this.inFlightSummaries.delete(postId);
+    }
+  }
+
+  /**
    * Strictly idempotent generator that checks the cache before invoking the Grok API.
    * Returns a structured JSON summary.
    */
-  public async generateSummaryIdempotent(postId: number): Promise<WorkflowSummaryResult> {
+  private async _generateSummaryInternal(postId: number): Promise<WorkflowSummaryResult> {
     const metrics = await prisma.workflowMetrics.findUnique({ where: { postId } });
     if (!metrics) {
       throw new AppError('Workflow metrics not found', StatusCodes.NOT_FOUND, 'NOT_FOUND');

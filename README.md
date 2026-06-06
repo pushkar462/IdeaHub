@@ -1,67 +1,72 @@
-# 💡 IdeaHub (formerly Product Collab Network)
+# IdeaHub - Internal Product Collaboration Social Network
 
-A modern, highly-interactive internal social network and collaboration platform built for cross-functional product teams. IdeaHub centralizes product discussions, bug tracking, feature requests, and workflow management into a unified, Discord-style interface.
+A lightweight, Discord-style discussion and workflow platform specifically designed for internal product teams. IdeaHub centralizes ideas, bugs, feature requests, and discussions, making cross-department collaboration seamless and intelligent.
 
----
+## 🚀 Features
 
-## ✨ Key Features
+- **Real-Time Collaboration**: Instant notifications, threaded comments, reactions, and `@mentions` powered by Socket.io.
+- **Workflows & Departments**: Categorize posts by departments, assign ownership, and track progression through customizable workflow statuses (Backlog -> Todo -> In Progress -> Done).
+- **AI Intelligence**: Automated AI-generated workflow summaries using the Grok API, providing concise catch-ups on long threads.
+- **SLA & Metric Tracking**: Built-in SLA tracking for posts, calculating time-in-status and identifying bottlenecks in product cycles.
+- **Audit Logging**: Comprehensive activity timeline tracking changes to posts, assignments, and statuses.
+- **Role-Based Access Control (RBAC)**: Secure access handling with specific department roles (Admin, Founder, Frontend, Backend, DevOps, AI/ML).
 
-- **Dynamic Feed & Filtering:** Real-time feed for ideas, bugs, discussions, and feature requests. Filter by department, status, category, or priority.
-- **Role-Based Access Control (RBAC):** Dedicated roles (Admin, Founder, Frontend, Backend, DevOps, AI/ML) that determine view/edit permissions and assignment capabilities.
-- **Workflow & SLA Tracking:** Deep metrics on task statuses (`BACKLOG` to `DONE`), time spent in each stage, and SLA violation alerts.
-- **Real-time Notifications:** WebSockets provide instant updates for mentions (`@username`), post updates, assignments, and comment replies.
-- **AI-Powered Summarization:** BullMQ background workers leverage AI to automatically summarize lengthy comment threads and provide quick TL;DRs for unread posts.
-- **Mentions & Rich Text:** Full markdown support in posts and comments, along with dynamic user mentioning.
+## 🛠️ Tech Stack
 
----
+- **Frontend**: React 18, TypeScript, Vite, TailwindCSS, Zustand (State Management), React-Router
+- **Backend**: Node.js 18, Express, TypeScript, Prisma ORM, Socket.io
+- **Database**: PostgreSQL
+- **Caching & Pub/Sub**: In-memory mapping
+- **AI Integration**: Grok API
 
-## 🛠 Tech Stack
+## 📂 Project Structure
 
-### Frontend (Hosted on Vercel)
-- **Framework:** React 18 with TypeScript
-- **Build Tool:** Vite
-- **Styling:** TailwindCSS
-- **State Management:** Zustand
-- **Routing:** React Router v6
-- **Data Fetching & APIs:** Axios
+```text
+IdeaHub/
+├── backend/                  # Node.js API Server
+│   ├── prisma/               # Database schema and migrations
+│   ├── src/
+│   │   ├── config/           # Environment and DB config
+│   │   ├── controllers/      # Route controllers
+│   │   ├── dtos/             # Data Transfer Objects
+│   │   ├── middleware/       # Express middlewares (Auth, Error, RBAC)
+│   │   ├── routes/           # API routing
+│   │   ├── services/         # Business logic (Feed, Intelligence, Socket, Storage)
+│   │   ├── socket/           # Real-time WebSocket handlers
+│   │   └── validations/      # Validation schemas
+│   └── docker-compose.yml    # Local PostgreSQL configuration
+│
+└── frontend/                 # React Web Client
+    ├── src/
+    │   ├── api/              # Axios instance and API calls
+    │   ├── components/       # Reusable UI components & layouts
+    │   ├── lib/              # Socket.io client setup & utils
+    │   ├── pages/            # View components (Dashboard, Feed, Auth)
+    │   ├── stores/           # Zustand state management
+    │   └── types/            # TypeScript interfaces
+```
 
-### Backend (Hosted on Render)
-- **Runtime:** Node.js (v18+)
-- **Framework:** Express.js (REST API)
-- **Database ORM:** Prisma
-- **Database:** PostgreSQL
-- **Caching & Message Broker:** Redis (for BullMQ & WebSockets)
-- **Realtime:** Socket.io
-- **Job Queues:** BullMQ
-
----
-
-## 🚀 Local Development Setup
+## 🏎️ Quick Start
 
 ### Prerequisites
-- [Node.js](https://nodejs.org/en/) (v18 or higher)
-- [PostgreSQL](https://www.postgresql.org/) (running locally)
-- [Redis](https://redis.io/) (running locally)
-
-### 1. Backend Setup
+- Node.js >= 18
+- PostgreSQL running locally (or via Docker using the provided `docker-compose.yml`)
 
 ```bash
 cd backend
-
-# Install dependencies
+cp .env.example .env      # Edit credentials if needed
 npm install
 
-# Setup environment variables
-cp .env.example .env
-# Edit .env with your local PostgreSQL and Redis credentials
+# Start local PostgreSQL container (optional)
+docker-compose up -d
 
-# Push the schema to the database (and run seeds if any)
-npx prisma db push
+# Initialize database
+npx prisma migrate dev --name init
 
-# Start the development server
-npm run dev
+# Start development server
+npm run dev               # http://localhost:4000
 ```
-The backend should now be running at `http://localhost:4000`.
+
 
 ### 2. Frontend Setup
 
@@ -79,51 +84,20 @@ npm run dev
 ```
 The frontend should now be running at `http://localhost:5173`.
 
----
+## ⚙️ Environment Variables
 
-## 🌍 Production Deployment Guide
-
-IdeaHub is designed to be deployed across modern PaaS providers.
-
-### Database & Redis (Render)
-1. Provision a **PostgreSQL** instance on Render.
-2. Provision a **Key Value (Redis)** instance on Render. 
-3. *Note:* If connecting from an external service, make sure to add `0.0.0.0/0` to the IP Allowlist in the Redis Networking settings.
-
-### Backend (Render Web Service)
-1. Create a new Web Service on Render pointing to the `backend/` directory.
-2. Set the start command to `npm run build && npm run start`.
-3. Configure the Environment Variables:
-   - `DATABASE_URL`: Your Render PostgreSQL External/Internal URL
-   - `REDIS_URL`: Your Render Key Value `rediss://...` URL
-   - `JWT_SECRET`: A secure random string
-   - `PORT`: `4000`
-
-### Frontend (Vercel)
-1. Create a new Project on Vercel pointing to the `frontend/` directory.
-2. Vercel will automatically detect the Vite setup.
-3. Configure the Environment Variables:
-   - `VITE_API_URL`: Your deployed backend URL (e.g., `https://ideahub-api.onrender.com/api`)
-4. *Note:* The included `vercel.json` automatically handles SPA routing (redirecting page refreshes to `index.html`).
-
----
-
-## 🔒 Environment Variables Reference
-
-### Backend (`backend/.env`)
+### `backend/.env.example`
 ```env
-DATABASE_URL="postgresql://user:password@localhost:5432/ideahub"
-REDIS_URL="redis://localhost:6379"
-JWT_SECRET="your-super-secret-key"
+DATABASE_URL="postgresql://postgres:password@localhost:5432/ideahub?schema=public"
+JWT_SECRET="super-secret-key"
 PORT=4000
+GROK_API_KEY="your-grok-api-key"
 ```
 
-### Frontend (`frontend/.env`)
+### `frontend/.env.example`
 ```env
-VITE_API_URL="http://localhost:4000/api"
+VITE_API_URL=http://localhost:4000/api
 ```
 
----
-
-## 📄 License
-MIT License
+## 📜 License
+MIT

@@ -3,8 +3,8 @@ import { notificationService } from './notification.service';
 import { NotificationType } from '@prisma/client';
 
 export class MentionService {
-  // Regex to extract @username (3-20 chars alphanumeric + underscore)
-  private readonly MENTION_REGEX = /@([a-zA-Z0-9_]{3,20})/g;
+  // Regex to extract react-mentions markup: @[Display Name](id)
+  private readonly MENTION_REGEX = /@\[(.+?)\]\((.+?)\)/g;
   private readonly MAX_MENTIONS = 10;
 
   /**
@@ -20,12 +20,13 @@ export class MentionService {
     const { text, authorId, postId, commentId } = params;
 
     // 1. Extract matches (unique set to avoid processing same name twice)
-    const matches = Array.from(text.matchAll(this.MENTION_REGEX)).map((m) => m[1]);
+    // m[1] is display name, m[2] is id (which we generated as name without spaces)
+    const matches = Array.from(text.matchAll(this.MENTION_REGEX)).map((m) => m[1]); // using display name for DB query
     const uniqueUsernames = Array.from(new Set(matches)).slice(0, this.MAX_MENTIONS);
 
     if (uniqueUsernames.length === 0) return;
 
-    // 2. Resolve usernames case-insensitively (e.g. '@ved' matches 'Ved')
+    // 2. Resolve usernames case-insensitively (e.g. 'Ved Bhadani' matches 'Ved Bhadani')
     const users = await prisma.user.findMany({
       where: {
         name: { in: uniqueUsernames, mode: 'insensitive' },

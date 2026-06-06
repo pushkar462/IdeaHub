@@ -12,6 +12,6 @@ router.use(authenticate);
 
 router.get('/', getMyNotifications);
 router.patch('/:id/read', markAsRead);
-router.post('/read-all', markAllAsRead);
+router.patch('/read-all', markAllAsRead);
 
 export default router;
