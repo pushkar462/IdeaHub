@@ -11,13 +11,22 @@ interface PostFilters {
   assigneeId?: number;
 }
 
+interface PostStats {
+  totalActive: number;
+  myActiveTasks: number;
+  needReview: number;
+  completed: number;
+}
+
 interface PostState {
   feed: Post[];
   current: Post | null;
   loading: boolean;
   lastFilters: PostFilters;
+  stats: PostStats;
   fetchFeed: (filters?: PostFilters) => Promise<void>;
   fetchPost: (id: number, background?: boolean) => Promise<void>;
+  fetchStats: () => Promise<void>;
   createPost: (payload: FormData | Record<string, unknown>) => Promise<Post>;
   updateStatus: (id: number, status: string) => Promise<void>;
   deletePost: (id: number) => Promise<void>;
@@ -30,6 +39,12 @@ export const usePostStore = create<PostState>((set, get) => ({
   current: null,
   loading: false,
   lastFilters: {},
+  stats: {
+    totalActive: 0,
+    myActiveTasks: 0,
+    needReview: 0,
+    completed: 0,
+  },
 
   fetchFeed: async (filters = {}) => {
     set({ loading: true, lastFilters: filters });
@@ -42,6 +57,7 @@ export const usePostStore = create<PostState>((set, get) => ({
     try {
       const { data } = await api.get('/posts', { params: cleanFilters });
       set({ feed: Array.isArray(data) ? data : (data?.items || []), loading: false });
+      get().fetchStats();
     } catch {
       set({ loading: false });
     }
@@ -57,6 +73,15 @@ export const usePostStore = create<PostState>((set, get) => ({
       set({ current: { ...post, comments }, loading: false });
     } catch {
       if (!background) set({ loading: false });
+    }
+  },
+
+  fetchStats: async () => {
+    try {
+      const { data } = await api.get('/posts/stats');
+      set({ stats: data });
+    } catch (err) {
+      console.error('Failed to fetch stats', err);
     }
   },
 
@@ -82,6 +107,7 @@ export const usePostStore = create<PostState>((set, get) => ({
       await api.delete(`/posts/${id}`);
       set((s) => ({ feed: s.feed.filter((p) => p.id !== id) }));
       toast.success('Post deleted');
+      get().fetchStats();
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Failed to delete post');
     }

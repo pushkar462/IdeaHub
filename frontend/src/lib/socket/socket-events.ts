@@ -55,6 +55,7 @@ export const bindSocketEvents = () => {
       status: payload.status as any,
       assigneeId: payload.assigneeId === null ? undefined : payload.assigneeId
     });
+    usePostStore.getState().fetchStats();
   });
 
   socket.on('timeline:new', (timelineEvent) => {

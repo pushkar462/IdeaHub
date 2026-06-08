@@ -1,9 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuthStore } from '@/stores/auth.store';
 import { usePostStore } from '@/stores/post.store';
 import { useNotificationStore } from '@/stores/notification.store';
-import api from '@/api/axios';
 import PostCard from '@/components/posts/PostCard';
 import Loader from '@/components/shared/Loader';
 import EmptyState from '@/components/shared/EmptyState';
@@ -24,30 +23,13 @@ const StatCard: React.FC<{ icon: string; label: string; value: number; color: st
 
 const DashboardPage: React.FC = () => {
   const { user } = useAuthStore();
-  const { feed, loading, fetchFeed, reactToPost } = usePostStore();
+  const { feed, loading, fetchFeed, reactToPost, stats, fetchStats } = usePostStore();
   const { list: notifications, unreadCount } = useNotificationStore();
-  
-  const [stats, setStats] = useState({
-    totalActive: 0,
-    myActiveTasks: 0,
-    needReview: 0,
-    completed: 0,
-  });
 
   useEffect(() => {
     fetchFeed();
-    
-    // Fetch global real-time stats
-    const fetchStats = async () => {
-      try {
-        const { data } = await api.get('/posts/stats');
-        setStats(data);
-      } catch (err) {
-        console.error('Failed to fetch stats', err);
-      }
-    };
     fetchStats();
-  }, [fetchFeed]);
+  }, [fetchFeed, fetchStats]);
 
   const recent = feed.slice(0, 5);
 
