@@ -34,7 +34,7 @@ export const errorHandler = (
 
   // 1. Zod Validation Errors
   if (err instanceof ZodError) {
-    const formattedErrors = (err as any).errors.map((e: any) => ({
+    const formattedErrors = (err.issues || (err as any).errors || []).map((e: any) => ({
       field: e.path.join('.'),
       message: e.message,
     }));
