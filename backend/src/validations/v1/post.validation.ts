@@ -4,7 +4,7 @@ export const createPostSchema = z.object({
   body: z.object({
     title: z.string().min(3, 'Title must be at least 3 characters'),
     description: z.string().min(1, 'Description is required'),
-    category: z.enum(['BUG', 'FEATURE', 'IMPROVEMENT', 'SUGGESTION', 'IDEA', 'DISCUSSION']).optional(),
+    category: z.enum(['BUG', 'FEATURE', 'IMPROVEMENT', 'SUGGESTION', 'IDEA', 'DISCUSSION', 'PROBLEM']).optional(),
     priority: z.enum(['LOW', 'MEDIUM', 'HIGH']).optional(),
     assigneeId: z.preprocess((val) => (val ? Number(val) : undefined), z.number().int().positive().optional().nullable()),
     departmentId: z.preprocess((val) => (val ? Number(val) : undefined), z.number().int().positive().optional().nullable()),

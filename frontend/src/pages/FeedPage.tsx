@@ -5,7 +5,7 @@ import CreatePostModal from '@/components/posts/CreatePostModal';
 import Loader from '@/components/shared/Loader';
 import EmptyState from '@/components/shared/EmptyState';
 
-const CATEGORIES = ['BUG', 'IMPROVEMENT', 'SUGGESTION', 'FEATURE', 'IDEA', 'DISCUSSION'];
+const CATEGORIES = ['BUG', 'IMPROVEMENT', 'SUGGESTION', 'FEATURE', 'IDEA', 'DISCUSSION', 'PROBLEM'];
 const STATUSES   = ['BACKLOG', 'TODO', 'IN_PROGRESS', 'IN_REVIEW', 'BLOCKED', 'DONE'];
 const PRIORITIES = ['LOW', 'MEDIUM', 'HIGH'];
 

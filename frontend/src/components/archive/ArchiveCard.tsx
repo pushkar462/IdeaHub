@@ -8,7 +8,7 @@ interface Props { post: Post }
 
 const categoryIcon: Record<string, string> = {
   BUG: '🐛', IMPROVEMENT: '⚡', SUGGESTION: '💬',
-  FEATURE: '🚀', IDEA: '💡', DISCUSSION: '🗨️',
+  FEATURE: '🚀', IDEA: '💡', DISCUSSION: '🗨️', PROBLEM: '⚠️',
 };
 
 const ArchiveCard: React.FC<Props> = ({ post }) => (

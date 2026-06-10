@@ -19,7 +19,8 @@ export type PostCategory =
   | 'SUGGESTION'
   | 'FEATURE'
   | 'IDEA'
-  | 'DISCUSSION';
+  | 'DISCUSSION'
+  | 'PROBLEM';
 
 export type PostStatus = 'BACKLOG' | 'TODO' | 'IN_PROGRESS' | 'IN_REVIEW' | 'BLOCKED' | 'DONE';
 export type Priority = 'LOW' | 'MEDIUM' | 'HIGH';

@@ -11,6 +11,7 @@ const categoryColors: Record<string, string> = {
   FEATURE:     'bg-violet-100 text-violet-700',
   IDEA:        'bg-amber-100 text-amber-700',
   DISCUSSION:  'bg-sky-100 text-sky-700',
+  PROBLEM:     'bg-orange-100 text-orange-700',
 };
 
 const priorityDot: Record<string, string> = {

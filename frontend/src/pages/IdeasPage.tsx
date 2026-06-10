@@ -7,7 +7,7 @@ import Loader from '@/components/shared/Loader';
 import EmptyState from '@/components/shared/EmptyState';
 import api from '@/api/axios';
 
-const CATEGORIES = ['', 'BUG', 'IMPROVEMENT', 'SUGGESTION', 'FEATURE', 'IDEA', 'DISCUSSION'];
+const CATEGORIES = ['', 'BUG', 'IMPROVEMENT', 'SUGGESTION', 'FEATURE', 'IDEA', 'DISCUSSION', 'PROBLEM'];
 
 const IdeasPage: React.FC = () => {
   const { feed, loading, fetchFeed, reactToPost } = usePostStore();

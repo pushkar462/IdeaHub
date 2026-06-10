@@ -5,7 +5,7 @@ import ArchiveCard from '@/components/archive/ArchiveCard';
 import Loader from '@/components/shared/Loader';
 import EmptyState from '@/components/shared/EmptyState';
 
-const CATEGORIES = ['', 'BUG', 'IMPROVEMENT', 'SUGGESTION', 'FEATURE', 'IDEA', 'DISCUSSION'];
+const CATEGORIES = ['', 'BUG', 'IMPROVEMENT', 'SUGGESTION', 'FEATURE', 'IDEA', 'DISCUSSION', 'PROBLEM'];
 
 const ArchivePage: React.FC = () => {
   const [archive, setArchive] = useState<Post[]>([]);

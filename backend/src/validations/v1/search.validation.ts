@@ -8,7 +8,7 @@ export const advancedSearchSchema = z.object({
   query: z.object({
     cursor: cursorSchema,
     limit: feedLimitSchema,
-    category: z.enum(['BUG', 'IMPROVEMENT', 'SUGGESTION', 'FEATURE', 'IDEA', 'DISCUSSION']).optional(),
+    category: z.enum(['BUG', 'IMPROVEMENT', 'SUGGESTION', 'FEATURE', 'IDEA', 'DISCUSSION', 'PROBLEM']).optional(),
     status: z.nativeEnum(WorkflowStatus).optional(),
     priority: z.enum(['LOW', 'MEDIUM', 'HIGH']).optional(),
     search: z.string().max(100, 'Search query too long').optional(),

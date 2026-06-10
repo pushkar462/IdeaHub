@@ -23,6 +23,7 @@ enum PostCategory {
   FEATURE
   IDEA
   DISCUSSION
+  PROBLEM
 }
 
 enum WorkflowStatus {

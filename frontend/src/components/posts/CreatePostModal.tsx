@@ -16,7 +16,7 @@ interface Props {
   onClose: () => void;
 }
 
-const CATEGORIES = ['BUG', 'IMPROVEMENT', 'SUGGESTION', 'FEATURE', 'IDEA', 'DISCUSSION'];
+const CATEGORIES = ['BUG', 'IMPROVEMENT', 'SUGGESTION', 'FEATURE', 'IDEA', 'DISCUSSION', 'PROBLEM'];
 const PRIORITIES = ['LOW', 'MEDIUM', 'HIGH'];
 
 const CreatePostModal: React.FC<Props> = ({ isOpen, onClose }) => {
