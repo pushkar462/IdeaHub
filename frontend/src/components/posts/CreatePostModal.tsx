@@ -82,14 +82,14 @@ const CreatePostModal: React.FC<Props> = ({ isOpen, onClose }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-modal w-full max-w-lg animate-in">
+      <div className="bg-white rounded-2xl shadow-modal w-full max-w-lg animate-in max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-surface-border">
+        <div className="flex items-center justify-between p-6 border-b border-surface-border shrink-0">
           <h2 className="text-lg font-semibold text-gray-900">Create New Post</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl leading-none">✕</button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto">
           {error && (
             <div className="bg-red-50 text-red-600 text-sm rounded-lg px-4 py-2">{error}</div>
           )}
