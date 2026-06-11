@@ -10,20 +10,24 @@ export type AuthorDTO = {
 export type AttachmentDTO = {
   id: number;
   url: string;
-  filename: string; // The sanitized original filename
+  filename: string;
+  mimeType: string;
 };
 
 export type FeedCardDTO = {
   id: number;
   title: string;
-  description: string; // A feed card might truncate this if needed, but we pass the full string for now
+  description: string;
   category: string;
   status: string;
   priority: string;
   tags: string[];
   createdAt: Date;
+  updatedAt: Date;
+  authorId: number;
   author: AuthorDTO;
   assignee: AuthorDTO | null;
+  attachments: AttachmentDTO[];
   replyCount: number;
   reactionCount: number;
   department?: { id: number; name: string; slug: string } | null;
@@ -55,6 +59,7 @@ export const mapToFeedCardDTO = (
   post: Post & {
     author: Pick<User, 'id' | 'name' | 'role' | 'avatarUrl'>;
     assignee: Pick<User, 'id' | 'name' | 'role' | 'avatarUrl'> | null;
+    attachments?: Pick<Attachment, 'id' | 'url' | 'filename' | 'mimeType'>[];
     _count?: { comments: number; reactions?: number };
   }
 ): FeedCardDTO => ({
@@ -66,8 +71,16 @@ export const mapToFeedCardDTO = (
   priority: post.priority,
   tags: post.tags,
   createdAt: post.createdAt,
+  updatedAt: post.updatedAt,
+  authorId: post.authorId,
   author: mapToAuthorDTO(post.author),
   assignee: post.assignee ? mapToAuthorDTO(post.assignee) : null,
+  attachments: (post.attachments ?? []).map((a) => ({
+    id: a.id,
+    url: a.url,
+    filename: a.filename,
+    mimeType: a.mimeType,
+  })),
   replyCount: post._count?.comments || 0,
   reactionCount: post._count?.reactions || 0,
   department: (post as any).department ?? null,

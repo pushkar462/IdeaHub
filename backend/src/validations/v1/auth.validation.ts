@@ -16,3 +16,12 @@ export const loginSchema = z.object({
     password: z.string().min(1, 'Password is required'),
   }).strict()
 });
+
+export const updateUserRoleSchema = z.object({
+  params: z.object({
+    id: z.string().regex(/^\d+$/, 'ID must be numeric'),
+  }).strict(),
+  body: z.object({
+    role: z.enum(['ADMIN', 'FOUNDER', 'DEVOPS', 'FRONTEND', 'BACKEND', 'AI_ML']),
+  }).strict(),
+});

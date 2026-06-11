@@ -10,10 +10,13 @@ const storage = multer.memoryStorage();
 
 const ALLOWED_MIME_TYPES = [
   'image/jpeg',
+  'image/jpg',
   'image/png',
   'image/webp',
   'application/pdf',
   'text/plain',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
 ];
 
 const fileFilter = (
@@ -25,7 +28,7 @@ const fileFilter = (
     cb(null, true);
   } else {
     console.warn(`[SECURITY] ${req.id || 'unknown'} - Rejected MIME type: ${file.mimetype}`);
-    cb(new AppError('Invalid file type. Only JPG, PNG, WEBP, PDF, and TXT are allowed.', StatusCodes.BAD_REQUEST, 'INVALID_FILE_TYPE'));
+    cb(new AppError('Unsupported file format. Allowed: JPG, PNG, WEBP, PDF, TXT, DOC, DOCX.', StatusCodes.BAD_REQUEST, 'INVALID_FILE_TYPE'));
   }
 };
 

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { usePostStore } from '@/stores/post.store';
 import { useAuthStore } from '@/stores/auth.store';
@@ -8,12 +8,15 @@ import StatusBadge from '@/components/posts/StatusBadge';
 import CommentThread from '@/components/posts/CommentThread';
 import AISummary from '@/components/posts/AISummary';
 import RenderMentionText from '@/components/shared/RenderMentionText';
+import AttachmentList from '@/components/posts/AttachmentList';
+import CreatePostModal from '@/components/posts/CreatePostModal';
 
 const PostDetailPage: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const { current: post, loading, fetchPost, updateStatus, deletePost, reactToPost } = usePostStore();
+  const [editOpen, setEditOpen] = useState(false);
 
   useEffect(() => {
     if (id) fetchPost(Number(id));
@@ -25,13 +28,15 @@ const PostDetailPage: React.FC = () => {
   const isAuthor = user?.id === post.authorId;
   const isFounder = user?.role === 'FOUNDER' || user?.role === 'ADMIN';
   const isDepartmentMember = (user as any)?.departmentId === post.departmentId && post.departmentId != null;
-  const canEdit = isAuthor || isFounder || isDepartmentMember;
+  const canChangeStatus = isAuthor || isFounder || isDepartmentMember;
+  const canEdit = isAuthor;
+  const canDelete = isAuthor || isFounder;
   const isLocked = post.status === 'DONE';
 
   const handleDelete = async () => {
-    if (confirm('Delete this post permanently?')) {
+    if (confirm('Are you sure you want to delete this post?')) {
       await deletePost(post.id);
-      navigate(-1);
+      navigate('/feed');
     }
   };
 
@@ -43,20 +48,17 @@ const PostDetailPage: React.FC = () => {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
-      {/* Back button */}
       <button onClick={() => navigate(-1)} className="text-sm text-gray-500 hover:text-gray-900 flex items-center gap-1">
         ← Back
       </button>
 
-      {/* Main Post Card */}
       <div className="card p-6 lg:p-8 animate-in">
-        {/* Header Metadata */}
         <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
           <div className="flex items-center gap-3 flex-wrap">
             <span className="badge bg-gray-100 text-gray-600">{post.category.replace('_', ' ')}</span>
             <StatusBadge status={post.status} />
             <span className="text-xs font-medium text-gray-400">PRIORITY: {post.priority}</span>
-            
+
             {post.department && (
               <span className="badge bg-purple-100 text-purple-700 border border-purple-200">
                 {post.department.name}
@@ -68,7 +70,7 @@ const PostDetailPage: React.FC = () => {
                 🚨 SLA BREACHED
               </span>
             )}
-            
+
             {post.workflowMetrics?.slaStatus === 'AT_RISK' && (
               <span className="badge bg-orange-100 text-orange-700 border border-orange-300">
                 ⚠️ SLA AT RISK
@@ -76,7 +78,7 @@ const PostDetailPage: React.FC = () => {
             )}
           </div>
           <div className="flex items-center gap-3">
-            {canEdit && (
+            {canChangeStatus && (
               <select
                 className="input py-1 text-xs w-auto bg-gray-50 disabled:cursor-not-allowed disabled:opacity-75"
                 value={post.status}
@@ -91,7 +93,12 @@ const PostDetailPage: React.FC = () => {
                 <option value="DONE">Done</option>
               </select>
             )}
-            {canEdit && (!isLocked || isFounder) && (
+            {canEdit && (
+              <button onClick={() => setEditOpen(true)} className="text-xs text-brand-600 hover:underline">
+                Edit
+              </button>
+            )}
+            {canDelete && (!isLocked || isFounder) && (
               <button onClick={handleDelete} className="text-xs text-red-500 hover:underline">
                 Delete
               </button>
@@ -99,24 +106,23 @@ const PostDetailPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Title & Description */}
         <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-4 leading-snug">
           {post.title}
         </h1>
-        <div className="prose max-w-none text-gray-700 whitespace-pre-wrap mb-8">
+        <div className="prose max-w-none text-gray-700 whitespace-pre-wrap mb-4">
           <RenderMentionText content={post.description} />
         </div>
 
-        {/* Tags */}
+        <AttachmentList attachments={post.attachments} />
+
         {post.tags?.length > 0 && (
-          <div className="flex flex-wrap gap-2 mb-6">
+          <div className="flex flex-wrap gap-2 mb-6 mt-4">
             {post.tags.map(tag => (
               <span key={tag} className="badge bg-surface text-gray-500">#{tag}</span>
             ))}
           </div>
         )}
 
-        {/* Footer: Author & Assignee */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4
                         pt-6 border-t border-surface-border">
           <div className="flex items-center gap-3">
@@ -129,6 +135,9 @@ const PostDetailPage: React.FC = () => {
               </p>
               <p className="text-xs text-gray-400">
                 Posted {new Date(post.createdAt).toLocaleString()}
+                {post.updatedAt !== post.createdAt && (
+                  <span> · Edited {new Date(post.updatedAt).toLocaleString()}</span>
+                )}
               </p>
             </div>
           </div>
@@ -155,10 +164,8 @@ const PostDetailPage: React.FC = () => {
         </div>
       </div>
 
-      {/* AI Summary Section */}
       <AISummary postId={post.id} initialSummary={post.workflowMetrics?.aiSummaryCache} isLocked={isLocked} />
 
-      {/* Discussion Thread */}
       <div className="card p-6 lg:p-8">
         <h3 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
           Discussion <span className="bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded-full">
@@ -172,6 +179,15 @@ const PostDetailPage: React.FC = () => {
           isLocked={isLocked}
         />
       </div>
+
+      <CreatePostModal
+        isOpen={editOpen}
+        onClose={() => {
+          setEditOpen(false);
+          fetchPost(post.id, true);
+        }}
+        post={post}
+      />
     </div>
   );
 };

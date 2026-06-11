@@ -3,6 +3,7 @@ import {
   createPost,
   getFeed,
   getPost,
+  updatePost,
   updateStatus,
   reactToPost,
   deletePost,
@@ -13,7 +14,7 @@ import { authenticate } from '../middleware/auth.middleware';
 import { uploadRaw, validateMagicBytes } from '../middleware/upload.middleware';
 import { uploadLimiter } from '../middleware/rateLimit.middleware';
 import { validate } from '../middleware/validate.middleware';
-import { createPostSchema, updatePostStatusSchema, reactToPostSchema } from '../validations/v1/post.validation';
+import { createPostSchema, updatePostSchema, updatePostStatusSchema, reactToPostSchema } from '../validations/v1/post.validation';
 import { getFeedSchema, getCommentsSchema } from '../validations/v1/feed.validation';
 
 const router = Router();
@@ -24,6 +25,7 @@ router.post('/', authenticate, uploadLimiter, uploadRaw.single('attachment'), va
 router.get('/:id', authenticate, getPost);
 router.get('/:id/comments', authenticate, validate(getCommentsSchema), getPostComments);
 router.patch('/:id/status', authenticate, validate(updatePostStatusSchema), updateStatus);
+router.patch('/:id', authenticate, uploadLimiter, uploadRaw.single('attachment'), validateMagicBytes, validate(updatePostSchema), updatePost);
 router.post('/:id/react', authenticate, validate(reactToPostSchema), reactToPost);
 router.delete('/:id', authenticate, deletePost);
 

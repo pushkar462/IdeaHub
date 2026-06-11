@@ -9,6 +9,7 @@ interface PostFilters {
   category?: string;
   priority?: string;
   assigneeId?: number;
+  authorId?: number;
 }
 
 interface PostStats {
@@ -28,6 +29,7 @@ interface PostState {
   fetchPost: (id: number, background?: boolean) => Promise<void>;
   fetchStats: () => Promise<void>;
   createPost: (payload: FormData | Record<string, unknown>) => Promise<Post>;
+  updatePost: (id: number, payload: FormData) => Promise<Post>;
   updateStatus: (id: number, status: string) => Promise<void>;
   deletePost: (id: number) => Promise<void>;
   reactToPost: (id: number, emoji: string) => Promise<void>;
@@ -89,6 +91,22 @@ export const usePostStore = create<PostState>((set, get) => ({
     const { data } = await api.post('/posts', payload);
     await get().fetchFeed(get().lastFilters);
     return data;
+  },
+
+  updatePost: async (id, payload) => {
+    try {
+      const { data } = await api.patch(`/posts/${id}`, payload);
+      set((s) => ({
+        feed: s.feed.map((p) => (p.id === id ? { ...p, ...data } : p)),
+        current: s.current?.id === id ? { ...s.current, ...data } : s.current,
+      }));
+      await get().fetchFeed(get().lastFilters);
+      toast.success('Post updated');
+      return data;
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to update post');
+      throw error;
+    }
   },
 
   updateStatus: async (id, status) => {

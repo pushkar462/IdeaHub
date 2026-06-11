@@ -148,6 +148,9 @@ export const getUserById = async (req: Request, res: Response) => {
 /* ---------- LIST ALL USERS ---------- */
 export const listUsers = async (req: Request, res: Response) => {
   const search = req.query.search as string;
+  const limitParam = Number(req.query.limit);
+  const take = !isNaN(limitParam) && limitParam > 0 ? Math.min(limitParam, 100) : 10;
+
   const where = search ? {
     name: {
       contains: search,
@@ -159,7 +162,67 @@ export const listUsers = async (req: Request, res: Response) => {
     where,
     select: { id: true, name: true, role: true, avatarUrl: true, email: true },
     orderBy: { name: 'asc' },
-    take: 10,
+    take,
   });
   return successResponse(res, 'Users retrieved', users);
+};
+
+/* ---------- LIST USERS FOR ROLE MANAGEMENT (Admin/Founder only) ---------- */
+export const listUsersForManagement = async (req: Request, res: Response) => {
+  if (req.user!.role !== 'FOUNDER' && req.user!.role !== 'ADMIN') {
+    throw new AppError('Forbidden. Admin access required.', StatusCodes.FORBIDDEN, 'FORBIDDEN');
+  }
+
+  const users = await prisma.user.findMany({
+    select: { id: true, name: true, email: true, role: true, avatarUrl: true, createdAt: true },
+    orderBy: { name: 'asc' },
+  });
+  return successResponse(res, 'Users retrieved', users);
+};
+
+/* ---------- UPDATE USER ROLE (Admin/Founder only) ---------- */
+export const updateUserRole = async (req: Request, res: Response) => {
+  if (req.user!.role !== 'FOUNDER' && req.user!.role !== 'ADMIN') {
+    throw new AppError('Forbidden. Admin access required.', StatusCodes.FORBIDDEN, 'FORBIDDEN');
+  }
+
+  const id = Number(req.params.id);
+  const { role } = req.body;
+
+  if (isNaN(id)) {
+    throw new AppError('Invalid user ID', StatusCodes.BAD_REQUEST, 'INVALID_ID');
+  }
+
+  if (id === req.user!.id) {
+    throw new AppError('You cannot change your own role.', StatusCodes.BAD_REQUEST, 'SELF_ROLE_CHANGE');
+  }
+
+  const targetUser = await prisma.user.findUnique({ where: { id } });
+  if (!targetUser) {
+    throw new AppError('User not found', StatusCodes.NOT_FOUND, 'USER_NOT_FOUND');
+  }
+
+  // Prevent demoting the only founder (if changing away from FOUNDER)
+  if (targetUser.role === 'FOUNDER' && role !== 'FOUNDER') {
+    const founderCount = await prisma.user.count({ where: { role: 'FOUNDER' } });
+    if (founderCount <= 1) {
+      throw new AppError('Cannot change role of the only founder account.', StatusCodes.BAD_REQUEST, 'LAST_FOUNDER');
+    }
+  }
+
+  // Enforce one account per role for ADMIN and FOUNDER
+  if (role === 'ADMIN' || role === 'FOUNDER') {
+    const existingRole = await prisma.user.findFirst({ where: { role, id: { not: id } } });
+    if (existingRole) {
+      throw new AppError(`A user with the ${role} role already exists.`, StatusCodes.CONFLICT, 'ROLE_EXISTS');
+    }
+  }
+
+  const user = await prisma.user.update({
+    where: { id },
+    data: { role },
+    select: { id: true, name: true, email: true, role: true, avatarUrl: true, createdAt: true },
+  });
+
+  return successResponse(res, 'Role updated successfully', user);
 };

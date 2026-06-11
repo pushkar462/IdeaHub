@@ -25,9 +25,13 @@ export const createPost = async (req: Request, res: Response) => {
         url: result.url,
         filename: req.file.originalname,
       };
-    } catch (storageErr) {
-      // Storage failed (e.g., read-only filesystem on Render) — continue without attachment
-      console.warn('Storage upload failed, continuing without attachment:', storageErr);
+    } catch (storageErr: any) {
+      console.error('Storage upload failed:', storageErr);
+      throw new AppError(
+        storageErr?.message || 'Upload failed. Please try again.',
+        StatusCodes.BAD_REQUEST,
+        'UPLOAD_FAILED'
+      );
     }
   }
 
@@ -200,6 +204,104 @@ export const updateStatus = async (req: Request, res: Response) => {
   return successResponse(res, 'Post updated successfully', post);
 };
 
+/* ---------- UPDATE POST CONTENT ---------- */
+export const updatePost = async (req: Request, res: Response) => {
+  const id = Number(req.params.id);
+  const { title, description, category, tags, priority, assigneeId, departmentId } = req.body;
+  const userId = req.user!.id;
+
+  if (isNaN(id)) {
+    throw new AppError('Invalid post ID', StatusCodes.BAD_REQUEST, 'INVALID_ID');
+  }
+
+  const existing = await prisma.post.findUnique({
+    where: { id },
+    include: { attachments: true },
+  });
+
+  if (!existing) {
+    throw new AppError('Post not found', StatusCodes.NOT_FOUND, 'POST_NOT_FOUND');
+  }
+
+  if (existing.authorId !== userId) {
+    throw new AppError('Forbidden. You can only edit your own posts.', StatusCodes.FORBIDDEN, 'FORBIDDEN');
+  }
+
+  // Handle attachment removal (supports single or multiple IDs from multipart form)
+  const rawRemoveIds = req.body.removeAttachmentId;
+  const removeIds: number[] = Array.isArray(rawRemoveIds)
+    ? rawRemoveIds.map(Number)
+    : rawRemoveIds
+      ? [Number(rawRemoveIds)]
+      : [];
+
+  for (const attId of removeIds) {
+    const attachment = existing.attachments.find((a) => a.id === attId);
+    if (attachment) {
+      const key = attachment.url.replace(/^\/uploads\//, '');
+      await storageService.delete(key).catch((e) => console.warn('Failed to delete attachment file:', e));
+      await prisma.attachment.delete({ where: { id: attachment.id } });
+    }
+  }
+
+  // Handle new attachment upload
+  if (req.file) {
+    try {
+      const result = await storageService.upload(
+        req.file.buffer,
+        req.file.originalname,
+        req.file.mimetype,
+        'POST_ATTACHMENT',
+        false
+      );
+      await prisma.attachment.create({
+        data: {
+          url: result.url,
+          filename: req.file.originalname,
+          mimeType: req.file.mimetype,
+          postId: id,
+        },
+      });
+    } catch (storageErr: any) {
+      throw new AppError(
+        storageErr?.message || 'Upload failed. Please try again.',
+        StatusCodes.BAD_REQUEST,
+        'UPLOAD_FAILED'
+      );
+    }
+  }
+
+  const updateData: Record<string, unknown> = {};
+  if (title !== undefined) updateData.title = title;
+  if (description !== undefined) updateData.description = description;
+  if (category !== undefined) updateData.category = category;
+  if (tags !== undefined) updateData.tags = tags;
+  if (priority !== undefined) updateData.priority = priority;
+  if (assigneeId !== undefined) updateData.assigneeId = assigneeId;
+  if (departmentId !== undefined) updateData.departmentId = departmentId;
+
+  const post = await prisma.post.update({
+    where: { id },
+    data: updateData,
+    include: {
+      author: { select: { id: true, name: true, role: true, avatarUrl: true } },
+      assignee: { select: { id: true, name: true, role: true, avatarUrl: true } },
+      attachments: true,
+      department: { select: { id: true, name: true, slug: true } },
+      reactions: true,
+      _count: { select: { comments: { where: { parentId: null } }, reactions: true } },
+    },
+  });
+
+  if (description !== undefined) {
+    mentionService.processMentions({ text: description, authorId: userId, postId: id }).catch((e) =>
+      console.warn('processMentions failed:', e)
+    );
+  }
+
+  return successResponse(res, 'Post updated successfully', post);
+};
+
 /* ---------- GET POST COMMENTS (PAGINATED) ---------- */
 export const getPostComments = async (req: Request, res: Response) => {
   const postId = Number(req.params.id);
@@ -242,7 +344,10 @@ export const reactToPost = async (req: Request, res: Response) => {
 /* ---------- DELETE POST ---------- */
 export const deletePost = async (req: Request, res: Response) => {
   const id = Number(req.params.id);
-  const post = await prisma.post.findUnique({ where: { id } });
+  const post = await prisma.post.findUnique({
+    where: { id },
+    include: { attachments: true },
+  });
   
   if (!post) {
     throw new AppError('Post not found', StatusCodes.NOT_FOUND, 'POST_NOT_FOUND');
@@ -250,6 +355,14 @@ export const deletePost = async (req: Request, res: Response) => {
   
   if (post.authorId !== req.user!.id && req.user!.role !== 'FOUNDER' && req.user!.role !== 'ADMIN') {
     throw new AppError('Forbidden. You cannot delete this post.', StatusCodes.FORBIDDEN, 'FORBIDDEN');
+  }
+
+  // Clean up attachment files from storage
+  for (const attachment of post.attachments) {
+    const key = attachment.url.replace(/^\/uploads\//, '');
+    await storageService.delete(key).catch((e) =>
+      console.warn(`Failed to delete attachment file ${key}:`, e)
+    );
   }
   
   await prisma.post.delete({ where: { id } });

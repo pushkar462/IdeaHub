@@ -80,11 +80,15 @@ export class FeedService {
         createdAt: true,
         updatedAt: true,
         departmentId: true,
+        authorId: true,
         author: {
-          select: { id: true, name: true, avatarUrl: true },
+          select: { id: true, name: true, role: true, avatarUrl: true },
         },
         assignee: {
-          select: { id: true, name: true, avatarUrl: true },
+          select: { id: true, name: true, role: true, avatarUrl: true },
+        },
+        attachments: {
+          select: { id: true, url: true, filename: true, mimeType: true },
         },
         department: {
           select: { id: true, name: true, slug: true },

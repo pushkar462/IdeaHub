@@ -8,6 +8,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/archive':       'Memory Archive',
   '/notifications': 'Notifications',
   '/profile':       'Profile',
+  '/admin/roles':   'Role Management',
 };
 
 interface TopbarProps {

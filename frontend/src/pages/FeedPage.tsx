@@ -1,38 +1,62 @@
 import React, { useEffect, useState } from 'react';
+import api from '@/api/axios';
 import { usePostStore } from '@/stores/post.store';
+import { useAuthStore } from '@/stores/auth.store';
 import PostCard from '@/components/posts/PostCard';
 import CreatePostModal from '@/components/posts/CreatePostModal';
 import Loader from '@/components/shared/Loader';
 import EmptyState from '@/components/shared/EmptyState';
+import { Post, User } from '@/types';
 
 const CATEGORIES = ['BUG', 'IMPROVEMENT', 'SUGGESTION', 'FEATURE', 'IDEA', 'DISCUSSION', 'PROBLEM'];
 const STATUSES   = ['BACKLOG', 'TODO', 'IN_PROGRESS', 'IN_REVIEW', 'BLOCKED', 'DONE'];
 const PRIORITIES = ['LOW', 'MEDIUM', 'HIGH'];
 
 const FeedPage: React.FC = () => {
-  const { feed, loading, fetchFeed, reactToPost } = usePostStore();
+  const { feed, loading, fetchFeed, reactToPost, deletePost } = usePostStore();
   const [search, setSearch]     = useState('');
   const [category, setCategory] = useState('');
   const [status, setStatus]     = useState('');
   const [priority, setPriority] = useState('');
+  const [authorId, setAuthorId] = useState('');
   const [showModal, setShowModal] = useState(false);
+  const [editingPost, setEditingPost] = useState<Post | null>(null);
+  const [creators, setCreators] = useState<Pick<User, 'id' | 'name'>[]>([]);
+  const [creatorsLoading, setCreatorsLoading] = useState(true);
 
   useEffect(() => {
-    fetchFeed({ search, category, status, priority });
-  }, [search, category, status, priority]);
+    api.get('/auth/users', { params: { limit: 100 } })
+      .then((res) => {
+        const list = Array.isArray(res.data) ? res.data : [];
+        setCreators(list.map((u: User) => ({ id: u.id, name: u.name })));
+      })
+      .catch(() => {})
+      .finally(() => setCreatorsLoading(false));
+  }, []);
 
-  const hasActiveFilters = category || status || priority || search;
+  useEffect(() => {
+    fetchFeed({
+      search,
+      category,
+      status,
+      priority,
+      authorId: authorId ? Number(authorId) : undefined,
+    });
+  }, [search, category, status, priority, authorId]);
+
+  const hasActiveFilters = category || status || priority || search || authorId;
+  const selectedCreator = creators.find((c) => String(c.id) === authorId);
 
   const clearAllFilters = () => {
     setSearch('');
     setCategory('');
     setStatus('');
     setPriority('');
+    setAuthorId('');
   };
 
   return (
     <div className="max-w-3xl mx-auto space-y-5">
-      {/* Search + Filters */}
       <div className="card p-4 space-y-3">
         <input
           className="input"
@@ -41,6 +65,17 @@ const FeedPage: React.FC = () => {
           onChange={(e) => setSearch(e.target.value)}
         />
         <div className="flex flex-wrap gap-2">
+          <select
+            className="input flex-1 min-w-[130px]"
+            value={authorId}
+            onChange={(e) => setAuthorId(e.target.value)}
+            disabled={creatorsLoading}
+          >
+            <option value="">All Users</option>
+            {creators.map((u) => (
+              <option key={u.id} value={u.id}>{u.name}</option>
+            ))}
+          </select>
           <select className="input flex-1 min-w-[130px]" value={category}
             onChange={(e) => setCategory(e.target.value)}>
             <option value="">All Categories</option>
@@ -64,10 +99,15 @@ const FeedPage: React.FC = () => {
           </select>
         </div>
 
-        {/* Active filter chips */}
         {hasActiveFilters && (
           <div className="flex flex-wrap items-center gap-2 pt-1">
             <span className="text-xs text-gray-500">Active filters:</span>
+            {authorId && selectedCreator && (
+              <span className="badge">
+                {selectedCreator.name}
+                <button onClick={() => setAuthorId('')} className="ml-1 text-gray-400 hover:text-gray-700">×</button>
+              </span>
+            )}
             {search && (
               <span className="badge">Search: "{search}" <button onClick={() => setSearch('')} className="ml-1 text-gray-400 hover:text-gray-700">×</button></span>
             )}
@@ -87,7 +127,6 @@ const FeedPage: React.FC = () => {
         )}
       </div>
 
-      {/* Results count */}
       <div className="flex items-center justify-between">
         <p className="text-sm text-gray-500">{feed.length} post{feed.length !== 1 ? 's' : ''}</p>
       </div>
@@ -97,8 +136,14 @@ const FeedPage: React.FC = () => {
       ) : feed.length === 0 ? (
         <EmptyState
           icon="🗒️"
-          title="No posts found"
-          description={hasActiveFilters ? 'No posts match your filters. Try clearing some.' : 'Be the first to post something!'}
+          title={authorId ? 'No posts found for this user' : 'No posts found'}
+          description={
+            authorId
+              ? `${selectedCreator?.name ?? 'This user'} hasn't posted anything matching your filters.`
+              : hasActiveFilters
+                ? 'No posts match your filters. Try clearing some.'
+                : 'Be the first to post something!'
+          }
           action={
             hasActiveFilters ? (
               <button onClick={clearAllFilters} className="btn-ghost">Clear Filters</button>
@@ -114,15 +159,21 @@ const FeedPage: React.FC = () => {
               key={post.id}
               post={post}
               onReact={(id, emoji) => reactToPost(id, emoji)}
+              onEdit={(p) => setEditingPost(p)}
+              onDelete={(id) => deletePost(id)}
             />
           ))}
         </div>
       )}
 
       <CreatePostModal isOpen={showModal} onClose={() => setShowModal(false)} />
+      <CreatePostModal
+        isOpen={Boolean(editingPost)}
+        onClose={() => setEditingPost(null)}
+        post={editingPost}
+      />
     </div>
   );
 };
 
 export default FeedPage;
-

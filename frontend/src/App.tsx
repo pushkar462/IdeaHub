@@ -11,6 +11,7 @@ import ArchivePage from '@/pages/ArchivePage';
 import NotificationsPage from '@/pages/NotificationsPage';
 import ProfilePage from '@/pages/ProfilePage';
 import PostDetailPage from '@/pages/PostDetailPage';
+import RoleManagementPage from '@/pages/RoleManagementPage';
 
 const App: React.FC = () => (
   <>
@@ -31,6 +32,7 @@ const App: React.FC = () => (
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/profile/:id" element={<ProfilePage />} />
           <Route path="/post/:id" element={<PostDetailPage />} />
+          <Route path="/admin/roles" element={<RoleManagementPage />} />
         </Route>
       </Route>
 

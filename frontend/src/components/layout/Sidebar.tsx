@@ -12,6 +12,8 @@ const NAV = [
   { to: '/profile',       icon: '👤', label: 'Profile' },
 ];
 
+const ADMIN_NAV = { to: '/admin/roles', icon: '🛡️', label: 'Role Management' };
+
 interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
@@ -21,6 +23,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const { user, logout } = useAuthStore();
   const { unreadCount } = useNotificationStore();
   const navigate = useNavigate();
+  const isAdmin = user?.role === 'FOUNDER' || user?.role === 'ADMIN';
+  const navItems = isAdmin ? [...NAV, ADMIN_NAV] : NAV;
 
   const handleLogout = () => {
     logout();
@@ -52,7 +56,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 
       {/* Nav */}
       <nav className="flex-1 px-3 py-4 space-y-1">
-        {NAV.map(({ to, icon, label }) => (
+        {navItems.map(({ to, icon, label }) => (
           <NavLink
             key={to}
             to={to}
