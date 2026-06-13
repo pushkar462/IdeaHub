@@ -7,6 +7,7 @@ export type PaginatedFeedResult = {
   items: FeedCardDTO[];
   nextCursor?: string | null;
   hasMore: boolean;
+  total: number;
 };
 
 export type PaginatedCommentResult = {
@@ -56,51 +57,54 @@ export class FeedService {
 
     const maxLimit = Math.min(limit, 50);
 
-    const items = await prisma.post.findMany({
-      where,
-      take: maxLimit + 1,
-      skip: cursorObj ? 1 : 0,
-      cursor: cursorObj
-        ? {
-            createdAt_id: {
-              createdAt: cursorObj.createdAt,
-              id: Number(cursorObj.id),
-            },
-          }
-        : undefined,
-      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-      select: {
-        id: true,
-        title: true,
-        description: true,
-        category: true,
-        status: true,
-        priority: true,
-        tags: true,
-        createdAt: true,
-        updatedAt: true,
-        departmentId: true,
-        authorId: true,
-        author: {
-          select: { id: true, name: true, role: true, avatarUrl: true },
+    const [items, total] = await Promise.all([
+      prisma.post.findMany({
+        where,
+        take: maxLimit + 1,
+        skip: cursorObj ? 1 : 0,
+        cursor: cursorObj
+          ? {
+              createdAt_id: {
+                createdAt: cursorObj.createdAt,
+                id: Number(cursorObj.id),
+              },
+            }
+          : undefined,
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          category: true,
+          status: true,
+          priority: true,
+          tags: true,
+          createdAt: true,
+          updatedAt: true,
+          departmentId: true,
+          authorId: true,
+          author: {
+            select: { id: true, name: true, role: true, avatarUrl: true },
+          },
+          assignee: {
+            select: { id: true, name: true, role: true, avatarUrl: true },
+          },
+          attachments: {
+            select: { id: true, url: true, filename: true, mimeType: true },
+          },
+          department: {
+            select: { id: true, name: true, slug: true },
+          },
+          workflowMetrics: {
+            select: { slaStatus: true, totalTimeBlocked: true },
+          },
+          _count: {
+            select: { comments: true, reactions: true },
+          },
         },
-        assignee: {
-          select: { id: true, name: true, role: true, avatarUrl: true },
-        },
-        attachments: {
-          select: { id: true, url: true, filename: true, mimeType: true },
-        },
-        department: {
-          select: { id: true, name: true, slug: true },
-        },
-        workflowMetrics: {
-          select: { slaStatus: true, totalTimeBlocked: true },
-        },
-        _count: {
-          select: { comments: true, reactions: true },
-        },
-      },
-    });
+      }),
+      prisma.post.count({ where }),
+    ]);
 
     const hasMore = items.length > maxLimit;
     const paginatedItems = hasMore ? items.slice(0, maxLimit) : items;
@@ -116,6 +120,7 @@ export class FeedService {
       items: paginatedItems.map(mapToFeedCardDTO as any),
       nextCursor: nextCursorString,
       hasMore,
+      total,
     };
   }
 

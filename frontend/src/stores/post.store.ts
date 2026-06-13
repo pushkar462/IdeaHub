@@ -28,6 +28,7 @@ interface PostState {
   nextCursor: string | null;
   lastFilters: PostFilters;
   stats: PostStats;
+  totalPosts: number;
   fetchFeed: (filters?: PostFilters) => Promise<void>;
   fetchMoreFeed: () => Promise<void>;
   fetchPost: (id: number, background?: boolean) => Promise<void>;
@@ -48,6 +49,7 @@ export const usePostStore = create<PostState>((set, get) => ({
   hasMore: false,
   nextCursor: null,
   lastFilters: {},
+  totalPosts: 0,
   stats: {
     totalActive: 0,
     myActiveTasks: 0,
@@ -68,7 +70,8 @@ export const usePostStore = create<PostState>((set, get) => ({
         feed: res.data, 
         loading: false,
         hasMore: (res as any).meta?.hasMore || false,
-        nextCursor: (res as any).meta?.nextCursor || null
+        nextCursor: (res as any).meta?.nextCursor || null,
+        totalPosts: (res as any).meta?.total ?? res.data.length
       });
       get().fetchStats();
     } catch {
@@ -89,7 +92,8 @@ export const usePostStore = create<PostState>((set, get) => ({
         feed: [...feed, ...res.data], 
         loadingMore: false,
         hasMore: (res as any).meta?.hasMore || false,
-        nextCursor: (res as any).meta?.nextCursor || null
+        nextCursor: (res as any).meta?.nextCursor || null,
+        totalPosts: (res as any).meta?.total ?? get().totalPosts
       });
     } catch {
       set({ loadingMore: false });

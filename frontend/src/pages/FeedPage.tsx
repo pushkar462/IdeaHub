@@ -13,7 +13,7 @@ const STATUSES   = ['BACKLOG', 'TODO', 'IN_PROGRESS', 'IN_REVIEW', 'BLOCKED', 'D
 const PRIORITIES = ['LOW', 'MEDIUM', 'HIGH'];
 
 const FeedPage: React.FC = () => {
-  const { feed, loading, hasMore, loadingMore, fetchFeed, fetchMoreFeed, reactToPost, deletePost } = usePostStore();
+  const { feed, loading, hasMore, loadingMore, fetchFeed, fetchMoreFeed, reactToPost, deletePost, totalPosts } = usePostStore();
   const [search, setSearch]     = useState('');
   const [category, setCategory] = useState('');
   const [status, setStatus]     = useState('');
@@ -128,7 +128,9 @@ const FeedPage: React.FC = () => {
       </div>
 
       <div className="flex items-center justify-between">
-        <p className="text-sm text-gray-500">{feed.length} post{feed.length !== 1 ? 's' : ''}</p>
+        <p className="text-sm text-gray-500">
+          Showing {feed.length} of {totalPosts} post{totalPosts !== 1 ? 's' : ''}
+        </p>
       </div>
 
       {loading ? (

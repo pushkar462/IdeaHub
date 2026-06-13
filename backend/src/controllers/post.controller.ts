@@ -97,7 +97,8 @@ export const getFeed = async (req: Request, res: Response) => {
 
   return successResponse(res, 'Feed retrieved', result.items, {
     nextCursor: result.nextCursor,
-    hasMore: result.hasMore
+    hasMore: result.hasMore,
+    total: result.total
   });
 };
 
