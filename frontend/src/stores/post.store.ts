@@ -56,12 +56,11 @@ export const usePostStore = create<PostState>((set, get) => ({
   },
 
   fetchFeed: async (filters = {}) => {
-    set({ loading: true, lastFilters: filters });
-    
     // Clean empty strings and undefined/null values
     const cleanFilters = Object.fromEntries(
       Object.entries(filters).filter(([_, v]) => v !== '' && v !== null && v !== undefined)
     );
+    set({ loading: true, lastFilters: cleanFilters });
 
     try {
       const res = await api.get('/posts', { params: cleanFilters });
