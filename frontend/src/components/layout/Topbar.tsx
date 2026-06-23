@@ -19,7 +19,7 @@ const Topbar: React.FC<TopbarProps> = ({ onMenuClick }) => {
   const { pathname } = useLocation();
   const [modalOpen, setModalOpen] = useState(false);
 
-  const title = PAGE_TITLES[pathname] ?? 'IdeaHub';
+  const title = PAGE_TITLES[pathname] ?? 'Athwart Loop';
 
   return (
     <>

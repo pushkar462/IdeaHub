@@ -1,6 +1,6 @@
-# IdeaHub - Internal Product Collaboration Social Network
+# Athwart Loop - Internal Product Collaboration Social Network
 
-A lightweight, Discord-style discussion and workflow platform specifically designed for internal product teams. IdeaHub centralizes ideas, bugs, feature requests, and discussions, making cross-department collaboration seamless and intelligent.
+A lightweight, Discord-style discussion and workflow platform specifically designed for internal product teams. Athwart Loop centralizes ideas, bugs, feature requests, and discussions, making cross-department collaboration seamless and intelligent.
 
 ## 🚀 Features
 
@@ -22,7 +22,7 @@ A lightweight, Discord-style discussion and workflow platform specifically desig
 ## 📂 Project Structure
 
 ```text
-IdeaHub/
+athwart-loop/
 ├── backend/                  # Node.js API Server
 │   ├── prisma/               # Database schema and migrations
 │   ├── src/
@@ -88,7 +88,7 @@ The frontend should now be running at `http://localhost:5173`.
 
 ### `backend/.env.example`
 ```env
-DATABASE_URL="postgresql://postgres:password@localhost:5432/ideahub?schema=public"
+DATABASE_URL="postgresql://postgres:password@localhost:5432/athwart_loop?schema=public"
 JWT_SECRET="super-secret-key"
 PORT=4000
 GROK_API_KEY="your-grok-api-key"

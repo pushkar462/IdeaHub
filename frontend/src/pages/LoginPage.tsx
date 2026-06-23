@@ -28,10 +28,10 @@ const LoginPage: React.FC = () => {
         <div className="text-center mb-8">
           <div className="w-14 h-14 bg-brand-500 rounded-2xl flex items-center justify-center
                           text-white font-bold text-2xl mx-auto mb-4 shadow-lg">
-            C
+            A
           </div>
           <h1 className="text-2xl font-bold text-gray-900">Welcome back</h1>
-          <p className="text-gray-500 mt-1">Sign in to IdeaHub</p>
+          <p className="text-gray-500 mt-1">Sign in to Athwart Loop</p>
         </div>
 
         <div className="card p-8">
@@ -96,7 +96,7 @@ const LoginPage: React.FC = () => {
           </form>
 
           <p className="text-center text-sm text-gray-500 mt-6">
-            New to IdeaHub?{' '}
+            New to Athwart Loop?{' '}
             <Link to="/register" className="text-brand-500 font-medium hover:underline">
               Create an account
             </Link>
