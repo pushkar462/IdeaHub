@@ -42,10 +42,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       <div className="px-5 py-5 border-b border-surface-border flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-brand-500 rounded-lg flex items-center justify-center text-white font-bold text-sm">
-            C
+            A
           </div>
           <div>
-            <p className="font-bold text-gray-900 text-sm leading-none">IdeaHub</p>
+            <p className="font-bold text-gray-900 text-sm leading-none">Athwart Loop</p>
             <p className="text-xs text-gray-400">Internal Network</p>
           </div>
         </div>
