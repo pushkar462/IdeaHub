@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
+import { AnimatePresence, motion } from 'framer-motion';
 import Sidebar from './Sidebar';
 import Topbar from './Topbar';
 import { useAuthStore } from '@/stores/auth.store';
@@ -9,6 +10,7 @@ const AppLayout: React.FC = () => {
   const { fetchMe } = useAuthStore();
   const { fetch: fetchNotifications } = useNotificationStore();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const location = useLocation();
 
   useEffect(() => {
     fetchMe();
@@ -19,7 +21,7 @@ const AppLayout: React.FC = () => {
   }, [fetchMe, fetchNotifications]);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-surface relative">
+    <div className="flex h-screen overflow-hidden bg-white relative">
       {/* Mobile overlay */}
       {isSidebarOpen && (
         <div 
@@ -32,8 +34,19 @@ const AppLayout: React.FC = () => {
       
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <Topbar onMenuClick={() => setIsSidebarOpen(true)} />
-        <main className="flex-1 overflow-y-auto p-4 md:p-6">
-          <Outlet />
+        <main className="flex-1 overflow-y-auto p-4 md:p-8 bg-white">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={location.pathname}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
+              className="h-full"
+            >
+              <Outlet />
+            </motion.div>
+          </AnimatePresence>
         </main>
       </div>
     </div>

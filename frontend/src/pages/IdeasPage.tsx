@@ -7,28 +7,28 @@ import Loader from '@/components/shared/Loader';
 import EmptyState from '@/components/shared/EmptyState';
 import api from '@/api/axios';
 
-const CATEGORIES = ['', 'BUG', 'IMPROVEMENT', 'SUGGESTION', 'FEATURE', 'IDEA', 'DISCUSSION', 'PROBLEM'];
+const TYPES = ['', 'QUESTION', 'PROBLEM', 'IDEA'];
 
 const IdeasPage: React.FC = () => {
   const { feed, loading, fetchFeed, reactToPost } = usePostStore();
   const { user } = useAuthStore();
   const [showModal, setShowModal] = useState(false);
-  const [category, setCategory] = useState('');
+  const [type, setType] = useState('');
 
   useEffect(() => {
-    fetchFeed({ category });
-  }, [category]);
+    fetchFeed({ type });
+  }, [type]);
 
   const ideas = feed;
 
   const handleApprove = async (id: number) => {
-    await api.patch(`/posts/${id}/status`, { status: 'DONE' });
-    fetchFeed({ category });
+    await api.patch(`/posts/${id}/status`, { status: 'RESOLVED' });
+    fetchFeed({ type });
   };
 
   const myIdeas = ideas.filter((i) => i.authorId === user?.id);
-  const open     = ideas.filter((i) => (i.status === 'TODO' || i.status === 'BACKLOG') && i.authorId !== user?.id);
-  const approved = ideas.filter((i) => i.status === 'DONE');
+  const open     = ideas.filter((i) => (i.status === 'OPEN' || i.status === 'DISCUSSING') && i.authorId !== user?.id);
+  const approved = ideas.filter((i) => i.status === 'RESOLVED');
   const archived = ideas.filter((i) => false); // Or remove this section later if UI doesn't need it
 
   return (
@@ -56,12 +56,12 @@ const IdeasPage: React.FC = () => {
       <div className="flex justify-end">
         <select 
           className="input w-48" 
-          value={category} 
-          onChange={(e) => setCategory(e.target.value)}
+          value={type} 
+          onChange={(e) => setType(e.target.value)}
         >
-          <option value="">All Categories</option>
-          {CATEGORIES.filter(Boolean).map((c) => (
-            <option key={c} value={c}>{c.replace('_', ' ')}</option>
+          <option value="">All Types</option>
+          {TYPES.filter(Boolean).map((c) => (
+            <option key={c} value={c}>{c}</option>
           ))}
         </select>
       </div>

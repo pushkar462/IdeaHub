@@ -98,8 +98,8 @@ const AISummary: React.FC<Props> = ({ postId, initialSummary, isLocked }) => {
         disabled={loading || isLocked}
         className={`btn-primary py-2 px-4 transition-colors ${
           loading || isLocked 
-            ? 'bg-indigo-300 cursor-not-allowed text-indigo-50' 
-            : 'bg-indigo-600 hover:bg-indigo-700'
+            ? 'opacity-50 cursor-not-allowed' 
+            : ''
         }`}
       >
         {loading ? 'Generating...' : isLocked ? 'Locked' : 'Generate Summary'}

@@ -36,10 +36,14 @@ const DashboardPage: React.FC = () => {
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       {/* Welcome */}
-      <div className="card p-6 bg-gradient-to-r from-brand-500 to-brand-600 text-white border-0">
-        <p className="text-sm opacity-80 mb-1">Good day,</p>
-        <h2 className="text-2xl font-bold">{user?.name ?? 'Team member'} 👋</h2>
-        <p className="text-sm opacity-80 mt-1">{user?.role?.replace('_', '/')} · {user?.email}</p>
+      <div className="card p-8 bg-brand-primary text-white border-0 shadow-lg relative overflow-hidden">
+        <div className="relative z-10">
+          <p className="text-sm text-brand-light mb-1 font-medium tracking-wide">Welcome back,</p>
+          <h2 className="text-3xl font-bold mb-1">{user?.name ?? 'Team member'} 👋</h2>
+          <p className="text-sm text-brand-light font-medium">{user?.role?.replace('_', '/')} · {user?.email}</p>
+        </div>
+        {/* Decorative circle */}
+        <div className="absolute -right-10 -top-20 w-64 h-64 bg-white opacity-5 rounded-full blur-3xl"></div>
       </div>
 
       {/* Stats */}
@@ -54,15 +58,15 @@ const DashboardPage: React.FC = () => {
       {unreadCount > 0 && (
         <Link
           to="/notifications"
-          className="card p-4 flex items-center gap-3 bg-brand-50 border-brand-200
-                     hover:bg-brand-100 transition-colors"
+          className="card p-4 flex items-center gap-3 bg-brand-light/50 border-brand-primary/20
+                     hover:bg-brand-light transition-colors"
         >
           <span className="text-2xl">🔔</span>
           <div>
-            <p className="text-sm font-semibold text-brand-700">
+            <p className="text-sm font-semibold text-brand-primary">
               You have {unreadCount} unread notification{unreadCount > 1 ? 's' : ''}
             </p>
-            <p className="text-xs text-brand-500">Click to view them →</p>
+            <p className="text-xs text-brand-primary/80 font-medium">Click to view them →</p>
           </div>
         </Link>
       )}
@@ -70,8 +74,8 @@ const DashboardPage: React.FC = () => {
       {/* Recent posts */}
       <div>
         <div className="flex items-center justify-between mb-3">
-          <h3 className="font-semibold text-gray-800">Recent Discussions</h3>
-          <Link to="/feed" className="text-sm text-brand-500 hover:underline">View all →</Link>
+          <h3 className="font-semibold text-gray-900">Recent Discussions</h3>
+          <Link to="/feed" className="text-sm font-medium text-brand-primary hover:underline">View all →</Link>
         </div>
 
         {loading ? (
