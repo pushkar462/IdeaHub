@@ -49,11 +49,11 @@ export const bindSocketEvents = () => {
 
   // BUG 1 FIX: Changed from 'workflow:status:changed' to 'workflow:statusChanged'
   // to match the backend's SOCKET_EVENTS.WORKFLOW_STATUS_CHANGED constant
-  socket.on('workflow:statusChanged', (payload: { postId: number; status: string; departmentId: number; assigneeId: number | null }) => {
+  socket.on('workflow:statusChanged', (payload: { postId: number; status: string; departmentId: number; ownerId: number | null }) => {
     // Optimistically update the store if the post is in feed or current
     usePostStore.getState().optimisticUpdate(payload.postId, {
       status: payload.status as any,
-      assigneeId: payload.assigneeId === null ? undefined : payload.assigneeId
+      ownerId: payload.ownerId === null ? undefined : payload.ownerId
     });
     usePostStore.getState().fetchStats();
   });
@@ -70,7 +70,6 @@ export const bindSocketEvents = () => {
         workflowMetrics: {
           ...currentPost.workflowMetrics,
           slaStatus: currentPost.workflowMetrics?.slaStatus || 'HEALTHY',
-          totalTimeBlocked: currentPost.workflowMetrics?.totalTimeBlocked || 0,
           aiSummaryCache: payload.aiSummary
         }
       });

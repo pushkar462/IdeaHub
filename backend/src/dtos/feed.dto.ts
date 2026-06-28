@@ -16,22 +16,23 @@ export type AttachmentDTO = {
 
 export type FeedCardDTO = {
   id: number;
+  postNumber: string;
   title: string;
   description: string;
-  category: string;
+  type: string;
+  section: string;
   status: string;
-  priority: string;
-  tags: string[];
+  resolution: string | null;
   createdAt: Date;
   updatedAt: Date;
   authorId: number;
   author: AuthorDTO;
-  assignee: AuthorDTO | null;
+  owner: AuthorDTO | null;
   attachments: AttachmentDTO[];
   replyCount: number;
   reactionCount: number;
   department?: { id: number; name: string; slug: string } | null;
-  workflowMetrics?: { slaStatus: string; totalTimeBlocked: number } | null;
+  workflowMetrics?: { slaStatus: string } | null;
   // Intentionally excludes full comment tree, raw internal payload blobs, etc.
 };
 
@@ -58,23 +59,24 @@ export const mapToAuthorDTO = (user: Pick<User, 'id' | 'name' | 'role' | 'avatar
 export const mapToFeedCardDTO = (
   post: Post & {
     author: Pick<User, 'id' | 'name' | 'role' | 'avatarUrl'>;
-    assignee: Pick<User, 'id' | 'name' | 'role' | 'avatarUrl'> | null;
+    owner: Pick<User, 'id' | 'name' | 'role' | 'avatarUrl'> | null;
     attachments?: Pick<Attachment, 'id' | 'url' | 'filename' | 'mimeType'>[];
     _count?: { comments: number; reactions?: number };
   }
 ): FeedCardDTO => ({
   id: post.id,
+  postNumber: post.postNumber,
   title: post.title,
   description: post.description,
-  category: post.category,
+  type: post.type,
+  section: post.section,
   status: post.status,
-  priority: post.priority,
-  tags: post.tags,
+  resolution: post.resolution,
   createdAt: post.createdAt,
   updatedAt: post.updatedAt,
   authorId: post.authorId,
   author: mapToAuthorDTO(post.author),
-  assignee: post.assignee ? mapToAuthorDTO(post.assignee) : null,
+  owner: post.owner ? mapToAuthorDTO(post.owner) : null,
   attachments: (post.attachments ?? []).map((a) => ({
     id: a.id,
     url: a.url,

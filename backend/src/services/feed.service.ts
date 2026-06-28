@@ -23,35 +23,36 @@ export class FeedService {
   public async getFeed(params: {
     cursor?: string;
     limit?: number;
-    category?: any;
+    type?: any;
+    section?: any;
     status?: any;
-    priority?: any;
-    assigneeId?: number;
+    ownerId?: number;
     authorId?: number;
     departmentId?: number;
     search?: string;
   }): Promise<PaginatedFeedResult> {
-    const { cursor: nextCursor, limit = 20, category, status, priority, assigneeId, authorId, departmentId, search } = params;
+    const { cursor: nextCursor, limit = 20, type, section, status, ownerId, authorId, departmentId, search } = params;
 
     const cursorObj = nextCursor ? decodeCursor(nextCursor) : undefined;
     if (nextCursor && !cursorObj) throw new AppError('Invalid nextCursor format', 400);
 
     const where: any = {};
-    if (category) where.category = category;
+    if (type) where.type = type;
+    if (section) where.section = section;
     if (status && status !== 'ALL') {
       where.status = status;
     } else if (status !== 'ALL') {
       // By default, exclude archived/completed posts from the main feed
-      where.status = { not: 'DONE' };
+      where.status = { not: 'RESOLVED' };
     }
-    if (priority) where.priority = priority;
-    if (assigneeId) where.assigneeId = assigneeId;
+    if (ownerId) where.ownerId = ownerId;
     if (authorId) where.authorId = authorId;
     if (departmentId) where.departmentId = departmentId;
     if (search) {
+      const formattedSearch = search.trim().split(/\s+/).join(' | ');
       where.OR = [
-        { title: { contains: search, mode: 'insensitive' } },
-        { description: { contains: search, mode: 'insensitive' } },
+        { title: { search: formattedSearch } },
+        { description: { search: formattedSearch } },
       ];
     }
 
@@ -73,12 +74,13 @@ export class FeedService {
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         select: {
           id: true,
+          postNumber: true,
           title: true,
           description: true,
-          category: true,
+          type: true,
+          section: true,
           status: true,
-          priority: true,
-          tags: true,
+          resolution: true,
           createdAt: true,
           updatedAt: true,
           departmentId: true,
@@ -86,7 +88,7 @@ export class FeedService {
           author: {
             select: { id: true, name: true, role: true, avatarUrl: true },
           },
-          assignee: {
+          owner: {
             select: { id: true, name: true, role: true, avatarUrl: true },
           },
           attachments: {
@@ -96,7 +98,7 @@ export class FeedService {
             select: { id: true, name: true, slug: true },
           },
           workflowMetrics: {
-            select: { slaStatus: true, totalTimeBlocked: true },
+            select: { slaStatus: true },
           },
           _count: {
             select: { comments: true, reactions: true },

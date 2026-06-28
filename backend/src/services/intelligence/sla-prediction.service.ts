@@ -1,5 +1,5 @@
 import prisma from '../../config/db';
-import { WorkflowStatus, SLAStatus } from '@prisma/client';
+import { Status, SLAStatus } from '@prisma/client';
 import { logger } from '../../infrastructure/observability/logger';
 
 export interface SLARiskPrediction {
@@ -25,17 +25,16 @@ export class SlaPredictionService {
       include: { post: true }
     });
 
-    if (!metrics || !metrics.post || metrics.post.status === WorkflowStatus.DONE) {
+    if (!metrics || !metrics.post || metrics.post.status === Status.RESOLVED) {
       return { riskLevel: 'LOW', breachProbability: 0.0, reasons: [] };
     }
 
     const reasons: string[] = [];
     let riskScore = 0;
 
-    // Rule 1: High Blocked Duration
-    if (metrics.totalTimeBlocked > 86400) { // > 1 day blocked
+    if (metrics.totalTimeInDiscussing > 1209600) { // > 14 days
       riskScore += 0.4;
-      reasons.push('High historical blocked duration (>24h).');
+      reasons.push('Extended time in Discussing.');
     }
 
     // Rule 2: Active stagnation
@@ -47,10 +46,16 @@ export class SlaPredictionService {
       }
     }
 
-    // Rule 3: Reassignment instability (Heuristic: high totalTimeTodo but currently in progress means it bounced)
-    if (metrics.totalTimeInTodo > 172800) { // > 2 days in TODO overall
-      riskScore += 0.2;
+    // Rule 3: Reassignment instability (Heuristic: high totalTimeOpen)
+    // E.g., time to acknowledge SLA (Open to Discussing or Resolved)
+    if (metrics.totalTimeInOpen > 172800) { // > 2 days in OPEN overall
+      riskScore += 0.5;
       reasons.push('High initial assignment delay.');
+    }
+
+    if (metrics.totalTimeInDiscussing > 604800) { // > 7 days in DISCUSSING
+      riskScore += 0.2;
+      reasons.push('Long duration in Discussing phase.');
     }
 
     // Cap at 0.99

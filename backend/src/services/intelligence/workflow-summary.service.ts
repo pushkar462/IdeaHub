@@ -104,7 +104,6 @@ export class WorkflowSummaryService {
         data: {
           postId,
           slaStatus: 'HEALTHY',
-          totalTimeBlocked: 0
         }
       });
     }

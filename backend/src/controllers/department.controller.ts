@@ -34,8 +34,7 @@ export const getDepartmentFeed = async (req: Request, res: Response) => {
     limit: query.limit,
     departmentId: department.id,
     status: query.status,
-    priority: query.priority,
-    assigneeId: query.assigneeId,
+    ownerId: query.assigneeId, // or ownerId
     search: query.search,
     sortBy: query.sortBy,
     startDate: query.startDate,

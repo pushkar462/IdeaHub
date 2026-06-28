@@ -5,13 +5,14 @@ import { decodeCursor, encodeCursor } from '../../utils/pagination.util';
 export type FeedSearchParams = {
   cursor?: string;
   limit?: number;
-  category?: any;
+  type?: any;
+  section?: any;
   status?: any;
-  priority?: any;
-  assigneeId?: number;
+  ownerId?: number;
+  authorId?: number;
   departmentId?: number;
   search?: string;
-  sortBy?: 'createdAt' | 'priority' | 'status'; // strictly whitelisted
+  sortBy?: 'createdAt' | 'status'; // strictly whitelisted
   startDate?: Date; // Bounded to max 90 days
   endDate?: Date;
 };
@@ -25,10 +26,11 @@ export class FeedSearchService {
     const { 
       cursor, 
       limit = 20, 
-      category, 
+      type, 
+      section,
       status, 
-      priority, 
-      assigneeId, 
+      ownerId,
+      authorId,
       departmentId, 
       search, 
       sortBy = 'createdAt',
@@ -40,10 +42,11 @@ export class FeedSearchService {
 
     // Build exactly the WHERE clause needed
     const where: Prisma.PostWhereInput = {};
-    if (category) where.category = category;
+    if (type) where.type = type;
+    if (section) where.section = section;
     if (status) where.status = status;
-    if (priority) where.priority = priority;
-    if (assigneeId) where.assigneeId = assigneeId;
+    if (ownerId) where.ownerId = ownerId;
+    if (authorId) where.authorId = authorId;
     if (departmentId) where.departmentId = departmentId;
     
     // Date ranges
@@ -54,12 +57,11 @@ export class FeedSearchService {
     }
 
     if (search) {
-      // Future FTS replacement target:
-      // This will become a tsvector query (e.g. @@to_tsquery)
-      // instead of expensive ILIKE scans.
+      // Convert space-separated words to a Postgres tsquery string (e.g. "foo | bar")
+      const formattedSearch = search.trim().split(/\s+/).join(' | ');
       where.OR = [
-        { title: { contains: search, mode: 'insensitive' } },
-        { description: { contains: search, mode: 'insensitive' } },
+        { title: { search: formattedSearch } },
+        { description: { search: formattedSearch } },
       ];
     }
 
@@ -67,7 +69,6 @@ export class FeedSearchService {
 
     // Whitelisted sort order
     const orderBy: Prisma.PostOrderByWithRelationInput[] = [];
-    if (sortBy === 'priority') orderBy.push({ priority: 'desc' });
     if (sortBy === 'status') orderBy.push({ status: 'asc' });
     orderBy.push({ createdAt: 'desc' }); // Always fallback to chronological
     orderBy.push({ id: 'desc' }); // Tie-breaker
@@ -88,18 +89,19 @@ export class FeedSearchService {
       orderBy,
       select: {
         id: true,
+        postNumber: true,
         title: true,
-        category: true,
+        type: true,
+        section: true,
         status: true,
-        priority: true,
-        tags: true,
+        resolution: true,
         createdAt: true,
         updatedAt: true,
         departmentId: true,
         author: {
           select: { id: true, name: true, avatarUrl: true },
         },
-        assignee: {
+        owner: {
           select: { id: true, name: true, avatarUrl: true },
         },
         _count: {
