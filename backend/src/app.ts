@@ -46,6 +46,17 @@ app.use('/api/users', userRoutes);
 // Health check
 app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
 
+// Temporary Migration Endpoint
+app.get('/api/migrate-db-force', (_req, res) => {
+  try {
+    const { execSync } = require('child_process');
+    const output = execSync('npx prisma migrate deploy').toString();
+    res.send(`<pre>Migration successful:\n${output}</pre>`);
+  } catch (error: any) {
+    res.status(500).send(`<pre>Migration failed:\n${error.message}\n${error.stdout?.toString()}\n${error.stderr?.toString()}</pre>`);
+  }
+});
+
 // Global error handler (must be last)
 app.use(errorHandler);
 
