@@ -12,7 +12,7 @@ build/
 .env.*.local
 
 # ── Prisma ────────────────────────────────────────────
-backend/prisma/migrations/
+# backend/prisma/migrations/
 
 # ── Logs ─────────────────────────────────────────────
 *.log
@@ -33,3 +33,4 @@ Thumbs.db
 
 # ── Vite ─────────────────────────────────────────────
 *.local
+vansh-questions.md
