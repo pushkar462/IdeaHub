@@ -5,21 +5,17 @@ import { useAuthStore } from '@/stores/auth.store';
 import Avatar from '@/components/shared/Avatar';
 import StatusBadge from './StatusBadge';
 import AttachmentList from './AttachmentList';
+import { MoreVertical, Edit2, Trash2, MessageSquare, ThumbsUp, AlertTriangle } from 'lucide-react';
 
-const categoryColors: Record<string, string> = {
-  BUG:         'bg-red-100 text-red-700',
-  IMPROVEMENT: 'bg-indigo-100 text-indigo-700',
-  SUGGESTION:  'bg-teal-100 text-teal-700',
-  FEATURE:     'bg-violet-100 text-violet-700',
-  IDEA:        'bg-amber-100 text-amber-700',
-  DISCUSSION:  'bg-sky-100 text-sky-700',
-  PROBLEM:     'bg-orange-100 text-orange-700',
-};
-
-const priorityDot: Record<string, string> = {
-  LOW:    'bg-gray-400',
-  MEDIUM: 'bg-yellow-400',
-  HIGH:   'bg-red-500',
+const typeColors: Record<string, string> = {
+  BUG:         'bg-transparent text-red-500 border-red-500',
+  IMPROVEMENT: 'bg-transparent text-indigo-500 border-indigo-500',
+  SUGGESTION:  'bg-transparent text-teal-500 border-teal-500',
+  FEATURE:     'bg-transparent text-violet-500 border-violet-500',
+  IDEA:        'bg-transparent text-brand-primary border-brand-primary', 
+  DISCUSSION:  'bg-transparent text-sky-500 border-sky-500',
+  PROBLEM:     'bg-transparent text-orange-500 border-orange-500',
+  QUESTION:    'bg-transparent text-purple-500 border-purple-500',
 };
 
 interface Props {
@@ -61,71 +57,62 @@ const PostCard: React.FC<Props> = ({ post, onReact, onEdit, onDelete }) => {
   };
 
   return (
-    <div className="card p-5 hover:shadow-lg transition-shadow animate-in">
-      <div className="flex items-start justify-between gap-3 mb-3">
+    <div className="card-interactive p-5 group">
+      <div className="flex items-start justify-between gap-3 mb-4">
         <div className="flex items-center gap-2 flex-wrap flex-1">
-          <span className={`badge ${categoryColors[post.category] ?? 'bg-gray-100 text-gray-600'}`}>
-            {post.category.replace('_', ' ')}
+          <span className={`badge ${typeColors[post.type] ?? 'bg-transparent text-gray-500 border-gray-400'}`}>
+            {post.type?.replace('_', ' ')}
           </span>
           <StatusBadge status={post.status} />
-          <span className="flex items-center gap-1 text-xs text-gray-400">
-            <span className={`w-2 h-2 rounded-full ${priorityDot[post.priority]}`} />
-            {post.priority}
-          </span>
 
-          {post.department && (
-            <span className="badge bg-purple-100 text-purple-700 border border-purple-200">
-              {post.department.name}
+          {post.section && (
+            <span className="badge bg-transparent text-[#b070f0] border-[#b070f0]">
+              {post.section}
             </span>
           )}
 
-          {post.assignee && (
-            <span className="badge bg-blue-100 text-blue-700 flex items-center gap-1">
-              <span>👤</span> {post.assignee.name}
+          {post.owner && (
+            <span className="badge bg-transparent text-[#77f0ec] border-[#77f0ec] flex items-center gap-1">
+              {post.owner.name}
             </span>
           )}
 
           {post.workflowMetrics?.slaStatus === 'BREACHED' && (
-            <span className="badge bg-red-100 text-red-700 animate-pulse border border-red-300">
-              🚨 SLA BREACHED
-            </span>
-          )}
-          {post.workflowMetrics?.slaStatus === 'AT_RISK' && (
-            <span className="badge bg-orange-100 text-orange-700 border border-orange-300">
-              ⚠️ SLA AT RISK
+            <span className="badge bg-red-100 text-red-700 border border-red-300 animate-pulse flex items-center gap-1">
+              <AlertTriangle size={12} /> SLA BREACH
             </span>
           )}
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
-          <span className="text-xs text-gray-400 whitespace-nowrap">
-            {new Date(post.createdAt).toLocaleDateString()}
+          <span className="text-xs text-gray-400 font-medium whitespace-nowrap">
+            {post.postNumber || new Date(post.createdAt).toLocaleDateString()}
           </span>
           {showMenu && (
             <div className="relative" ref={menuRef}>
               <button
-                onClick={() => setMenuOpen((o) => !o)}
-                className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600"
+                onClick={(e) => { e.preventDefault(); setMenuOpen((o) => !o); }}
+                className="p-1 rounded-md hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors"
                 aria-label="Post actions"
               >
-                ⋮
+                <MoreVertical size={16} />
               </button>
               {menuOpen && (
-                <div className="absolute right-0 top-full mt-1 w-36 bg-white border border-surface-border rounded-lg shadow-lg z-10 py-1">
+                <div className="absolute right-0 top-full mt-1 w-36 bg-white border border-surface-border rounded-xl shadow-lg z-10 py-1 overflow-hidden">
                   {canEdit && (
                     <button
-                      onClick={() => { setMenuOpen(false); onEdit?.(post); }}
-                      className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                      onClick={(e) => { e.preventDefault(); setMenuOpen(false); onEdit?.(post); }}
+                      className="w-full flex items-center gap-2 text-left px-3 py-2.5 text-sm text-gray-600 hover:bg-gray-50 hover:text-brand-primary transition-colors"
                     >
-                      ✏️ Edit
+                      <Edit2 size={14} /> Edit
                     </button>
                   )}
                   {canDelete && (
                     <button
-                      onClick={handleDelete}
-                      className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50"
+                      onClick={(e) => { e.preventDefault(); handleDelete(); }}
+                      className="w-full flex items-center gap-2 text-left px-3 py-2.5 text-sm text-accent-orange hover:bg-accent-orange/10 transition-colors"
                     >
-                      🗑 Delete
+                      <Trash2 size={14} /> Delete
                     </button>
                   )}
                 </div>
@@ -135,46 +122,40 @@ const PostCard: React.FC<Props> = ({ post, onReact, onEdit, onDelete }) => {
         </div>
       </div>
 
-      <Link to={`/post/${post.id}`} className="group">
-        <h3 className="font-semibold text-gray-900 group-hover:text-brand-600 transition-colors mb-1 line-clamp-2">
+      <Link to={`/post/${post.id}`} className="block">
+        <h3 className="text-lg font-bold text-gray-900 group-hover:text-brand-primary transition-colors mb-2 line-clamp-2">
           {post.title}
         </h3>
-        <p className="text-sm text-gray-500 line-clamp-2">{post.description}</p>
+        <p className="text-sm text-gray-600 line-clamp-2 leading-relaxed">
+          {post.description}
+        </p>
       </Link>
 
-      {post.tags?.length > 0 && (
-        <div className="flex flex-wrap gap-1 mt-3">
-          {post.tags.map((tag) => (
-            <span key={tag} className="badge bg-surface text-gray-500 text-xs">
-              #{tag}
-            </span>
-          ))}
-        </div>
-      )}
+      <div className="mt-4">
+        <AttachmentList attachments={post.attachments} compact />
+      </div>
 
-      <AttachmentList attachments={post.attachments} compact />
-
-      <div className="flex items-center justify-between mt-4 pt-3 border-t border-surface-border">
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between mt-5 pt-4 border-t border-surface-border">
+        <div className="flex items-center gap-3">
           <Avatar user={post.author} size="sm" />
           <div>
-            <p className="text-xs font-medium text-gray-700">{post.author?.name}</p>
-            <p className="text-xs text-gray-400">{post.author?.role?.replace('_', '/')}</p>
+            <p className="text-xs font-bold text-gray-800">{post.author?.name}</p>
+            <p className="text-[10px] text-gray-500 uppercase tracking-wider">{post.author?.role?.replace('_', '/')}</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3 text-gray-400 text-xs">
+        <div className="flex items-center gap-4 text-gray-500 text-xs font-semibold">
           <button
-            onClick={() => onReact?.(post.id, '👍')}
-            className="flex items-center gap-1 hover:text-brand-500 transition-colors"
+            onClick={(e) => { e.preventDefault(); onReact?.(post.id, '👍'); }}
+            className="flex items-center gap-1.5 hover:text-brand-primary hover:bg-brand-light px-2 py-1 rounded-md transition-all"
           >
-            👍 <span>{totalReactions}</span>
+            <ThumbsUp size={14} /> <span>{totalReactions}</span>
           </button>
           <Link
             to={`/post/${post.id}`}
-            className="flex items-center gap-1 hover:text-brand-500 transition-colors"
+            className="flex items-center gap-1.5 hover:text-[#0a6dd8] hover:bg-blue-50 px-2 py-1 rounded-md transition-all"
           >
-            💬 <span>{commentCount}</span>
+            <MessageSquare size={14} /> <span>{commentCount}</span>
           </Link>
         </div>
       </div>

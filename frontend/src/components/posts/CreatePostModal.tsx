@@ -1,19 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import api from '@/api/axios';
 import { usePostStore } from '@/stores/post.store';
-import { useDepartmentStore } from '@/stores/department.store';
 import { MentionsInput, Mention } from 'react-mentions';
 import { fetchUsersForMention } from '@/lib/mentions';
 import { Post } from '@/types';
 import { validateFile, parseUploadError } from '@/lib/uploads';
 import AttachmentList from './AttachmentList';
 import toast from 'react-hot-toast';
-
-interface TeamMember {
-  id: number;
-  name: string;
-  role: string;
-}
+import { X, Paperclip, Sparkles, Edit2, Trash2 } from 'lucide-react';
 
 interface Props {
   isOpen: boolean;
@@ -21,34 +15,24 @@ interface Props {
   post?: Post | null;
 }
 
-const CATEGORIES = ['BUG', 'IMPROVEMENT', 'SUGGESTION', 'FEATURE', 'IDEA', 'DISCUSSION', 'PROBLEM'];
-const PRIORITIES = ['LOW', 'MEDIUM', 'HIGH'];
+const TYPES = ['QUESTION', 'PROBLEM', 'IDEA'];
+const SECTIONS = ['BILLS', 'INVOICING', 'PATIENTS', 'CASES', 'PARTNERS', 'HOSPITALS', 'DOCTORS', 'WHATSAPP', 'PLATFORM', 'GENERAL'];
 
 const emptyForm = {
-  title: '', description: '', category: 'DISCUSSION',
-  priority: 'MEDIUM', tags: '', assigneeId: '', departmentId: '',
+  title: '',
+  description: '',
+  type: 'QUESTION',
+  section: 'GENERAL',
+  isUseCase: false,
 };
 
 const CreatePostModal: React.FC<Props> = ({ isOpen, onClose, post }) => {
   const isEditMode = Boolean(post);
   const { fetchFeed, updatePost } = usePostStore();
-  const { departments, fetchDepartments } = useDepartmentStore();
-  const [users, setUsers] = useState<TeamMember[]>([]);
-
-  useEffect(() => {
-    if (isOpen) {
-      fetchDepartments();
-      api.get('/auth/users', { params: { limit: 50 } }).then(res => {
-        const list = Array.isArray(res.data) ? res.data : [];
-        setUsers(list);
-      }).catch(() => {});
-    }
-  }, [isOpen, fetchDepartments]);
 
   const [form, setForm] = useState(emptyForm);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [suggestionReason, setSuggestionReason] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [existingAttachments, setExistingAttachments] = useState(post?.attachments ?? []);
   const [removedAttachmentIds, setRemovedAttachmentIds] = useState<number[]>([]);
@@ -58,11 +42,9 @@ const CreatePostModal: React.FC<Props> = ({ isOpen, onClose, post }) => {
       setForm({
         title: post.title,
         description: post.description,
-        category: post.category,
-        priority: post.priority,
-        tags: post.tags?.join(', ') ?? '',
-        assigneeId: post.assigneeId ? String(post.assigneeId) : '',
-        departmentId: post.departmentId ? String(post.departmentId) : '',
+        type: post.type,
+        section: post.section,
+        isUseCase: post.isUseCase,
       });
       setExistingAttachments(post.attachments ?? []);
       setRemovedAttachmentIds([]);
@@ -99,16 +81,10 @@ const CreatePostModal: React.FC<Props> = ({ isOpen, onClose, post }) => {
       const payload = new FormData();
       payload.append('title', form.title);
       payload.append('description', form.description);
-      payload.append('category', form.category);
-      payload.append('priority', form.priority);
+      payload.append('type', form.type);
+      payload.append('section', form.section);
+      payload.append('isUseCase', String(form.isUseCase));
 
-      if (form.tags) {
-        const tagsArray = form.tags.split(',').map((t) => t.trim()).filter(Boolean);
-        payload.append('tags', JSON.stringify(tagsArray));
-      }
-
-      if (form.assigneeId) payload.append('assigneeId', form.assigneeId);
-      if (form.departmentId) payload.append('departmentId', form.departmentId);
       if (file) payload.append('attachment', file);
 
       if (isEditMode && post) {
@@ -119,7 +95,7 @@ const CreatePostModal: React.FC<Props> = ({ isOpen, onClose, post }) => {
       } else {
         await api.post('/posts', payload);
         await fetchFeed();
-        toast.success('Post created');
+        toast.success('Post created successfully!');
       }
 
       onClose();
@@ -142,44 +118,69 @@ const CreatePostModal: React.FC<Props> = ({ isOpen, onClose, post }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-modal w-full max-w-lg animate-in max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-gray-900/40 backdrop-blur-sm">
+      <div className="bg-white border border-surface-border rounded-2xl shadow-2xl w-full max-w-xl animate-in max-h-[90vh] flex flex-col">
         <div className="flex items-center justify-between p-6 border-b border-surface-border shrink-0">
-          <h2 className="text-lg font-semibold text-gray-900">
-            {isEditMode ? 'Edit Post' : 'Create New Post'}
+          <h2 className="text-xl font-bold text-gray-900 tracking-wide flex items-center gap-2">
+            {isEditMode ? <><Edit2 size={20} className="text-brand-primary" /> Edit Post</> : <><Sparkles size={20} className="text-brand-primary" /> New Thread</>}
           </h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl leading-none">✕</button>
+          <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors">
+            <X size={20} />
+          </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto">
+        <form onSubmit={handleSubmit} className="p-6 space-y-5 overflow-y-auto">
           {error && (
-            <div className="bg-red-50 text-red-600 text-sm rounded-lg px-4 py-2">{error}</div>
+            <div className="bg-red-50 border border-red-200 text-red-600 text-sm rounded-xl px-4 py-3 flex items-center gap-2">
+              <span className="font-bold">Error:</span> {error}
+            </div>
           )}
 
           <div>
-            <label className="label">Title *</label>
+            <label className="label">Thread Title *</label>
             <input
-              className="input" required
-              placeholder="Short, descriptive title"
+              className="input text-base py-3 bg-gray-50 focus:bg-white" required
+              placeholder="E.g. Invoice generation failing for patient loop..."
               value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
             />
           </div>
 
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="label">Type</label>
+              <select className="input bg-gray-50 focus:bg-white" value={form.type}
+                onChange={(e) => setForm({ ...form, type: e.target.value })}>
+                {TYPES.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="label">Section</label>
+              <select className="input bg-gray-50 focus:bg-white" value={form.section}
+                onChange={(e) => setForm({ ...form, section: e.target.value })}>
+                {SECTIONS.map((p) => (
+                  <option key={p} value={p}>{p}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
           <div>
             <label className="label">Description *</label>
-            <div className="border border-surface-border rounded-lg focus-within:ring-2 focus-within:ring-brand-500 focus-within:border-brand-500 overflow-hidden bg-white">
+            <div className="border border-surface-border rounded-xl focus-within:ring-2 focus-within:ring-brand-primary/50 focus-within:border-brand-primary overflow-hidden bg-white transition-all shadow-sm">
               <MentionsInput
-                className="mentions-input min-h-[100px] w-full p-3 text-sm outline-none"
+                className="mentions-input min-h-[120px] w-full p-4 text-gray-900 outline-none"
                 value={form.description}
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
-                placeholder="Describe the issue, idea, or discussion… use @name to mention someone"
+                placeholder="Describe the issue, idea, or problem… Use @name to mention someone."
                 style={{
-                  control: { minHeight: 100 },
-                  input: { margin: 0, padding: 12, border: 'none', outline: 'none' },
+                  control: { minHeight: 120 },
+                  input: { margin: 0, padding: 16, border: 'none', outline: 'none' },
                   suggestions: {
-                    list: { backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' },
-                    item: { padding: '8px 12px', borderBottom: '1px solid #f3f4f6' },
+                    list: { backgroundColor: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '8px', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' },
+                    item: { padding: '8px 12px', borderBottom: '1px solid #f3f4f6', color: '#1f2937' },
                   },
                 }}
               >
@@ -187,117 +188,35 @@ const CreatePostModal: React.FC<Props> = ({ isOpen, onClose, post }) => {
                   trigger="@"
                   data={fetchUsersForMention}
                   displayTransform={(_id, display) => `@${display}`}
-                  style={{ backgroundColor: '#e0f2fe', color: '#0369a1', borderRadius: '4px', padding: '0 2px' }}
+                  style={{ backgroundColor: '#ede3ff', color: '#8018de', borderRadius: '4px', padding: '0 2px' }}
                 />
               </MentionsInput>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="label">Category</label>
-              <select className="input" value={form.category}
-                onChange={(e) => setForm({ ...form, category: e.target.value })}>
-                {CATEGORIES.map((c) => (
-                  <option key={c} value={c}>{c.replace('_', ' ')}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="label">Priority</label>
-              <select className="input" value={form.priority}
-                onChange={(e) => setForm({ ...form, priority: e.target.value })}>
-                {PRIORITIES.map((p) => (
-                  <option key={p} value={p}>{p}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {!isEditMode && (
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="label">Target Department</label>
-                <select className="input" value={form.departmentId}
-                  onChange={(e) => setForm({ ...form, departmentId: e.target.value })}>
-                  <option value="">(None)</option>
-                  {departments.map((d) => (
-                    <option key={d.id} value={d.id}>{d.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <div className="flex items-center justify-between">
-                  <label className="label mb-0">Assign To (Optional)</label>
-                  {form.departmentId && (
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        try {
-                          const { data } = await api.get(`/intelligence/recommend-assignee/${form.departmentId}`);
-                          if (data && data.recommendedAssignee) {
-                            setForm(prev => ({ ...prev, assigneeId: String(data.recommendedAssignee.id) }));
-                            setSuggestionReason(data.reasons.join(', '));
-                          } else {
-                            setSuggestionReason('No suggestion available.');
-                          }
-                        } catch {
-                          setSuggestionReason('Failed to load suggestion.');
-                        }
-                      }}
-                      className="text-xs text-brand-600 hover:text-brand-700 flex items-center gap-1 font-medium"
-                    >
-                      ✨ Suggest
-                    </button>
-                  )}
-                </div>
-                <select
-                  className="input mt-1"
-                  value={form.assigneeId}
-                  onChange={(e) => {
-                    setForm({ ...form, assigneeId: e.target.value });
-                    setSuggestionReason('');
-                  }}
-                >
-                  <option value="">— Unassigned —</option>
-                  {users.filter(u => u.name !== 'Admin' && u.role !== 'ADMIN').map(u => (
-                    <option key={u.id} value={u.id}>
-                      {u.name} ({u.role?.replace('_', '/')})
-                    </option>
-                  ))}
-                </select>
-                {suggestionReason && (
-                  <p className="text-xs text-purple-600 mt-1 flex items-start gap-1">
-                    <span>✨</span> {suggestionReason}
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
-
-          <div>
-            <label className="label">Tags (comma-separated)</label>
+          <label className="flex items-center gap-3 p-4 border border-surface-border rounded-xl bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors">
             <input
-              className="input"
-              placeholder="e.g. auth, api, mobile"
-              value={form.tags}
-              onChange={(e) => setForm({ ...form, tags: e.target.value })}
+              type="checkbox"
+              checked={form.isUseCase}
+              onChange={(e) => setForm({ ...form, isUseCase: e.target.checked })}
+              className="w-4 h-4 text-brand-primary bg-white border-gray-300 rounded focus:ring-brand-primary/50 focus:ring-2"
             />
-          </div>
+            <span className="text-sm font-medium text-gray-700">Flag as Reusable Use-Case / Document</span>
+          </label>
 
           {visibleAttachments.length > 0 && (
             <div>
               <label className="label">Current Attachments</label>
               <div className="space-y-2">
                 {visibleAttachments.map((att) => (
-                  <div key={att.id} className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg border border-surface-border bg-surface">
+                  <div key={att.id} className="flex items-center justify-between gap-2 px-3 py-2 rounded-xl border border-surface-border bg-gray-50">
                     <AttachmentList attachments={[att]} compact />
                     <button
                       type="button"
                       onClick={() => setRemovedAttachmentIds((prev) => [...prev, att.id])}
-                      className="text-xs text-red-500 hover:underline shrink-0"
+                      className="p-1 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors shrink-0"
                     >
-                      Remove
+                      <Trash2 size={16} />
                     </button>
                   </div>
                 ))}
@@ -306,29 +225,39 @@ const CreatePostModal: React.FC<Props> = ({ isOpen, onClose, post }) => {
           )}
 
           <div>
-            <label className="label">{isEditMode ? 'Add Attachment (Optional)' : 'Attachment (Optional)'}</label>
-            <input
-              type="file"
-              accept=".jpg,.jpeg,.png,.webp,.pdf,.txt,.doc,.docx"
-              className="input text-sm p-2"
-              onChange={handleFileChange}
-            />
+            <label className="label flex items-center gap-2">
+              <Paperclip size={14} className="text-gray-500" />
+              {isEditMode ? 'Add File (Optional)' : 'Attach File (Optional)'}
+            </label>
+            <div className="relative">
+              <input
+                type="file"
+                accept=".jpg,.jpeg,.png,.webp,.pdf,.txt,.doc,.docx"
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                onChange={handleFileChange}
+              />
+              <div className="flex items-center justify-center gap-2 px-4 py-8 border-2 border-dashed border-gray-300 hover:border-brand-primary/50 rounded-xl bg-gray-50 hover:bg-brand-light/50 transition-all text-gray-500">
+                <Paperclip size={20} />
+                <span className="text-sm font-medium">Click or drag file to attach</span>
+              </div>
+            </div>
+            
             {file && (
-              <div className="mt-2 flex items-center gap-2 text-sm text-gray-600 bg-surface px-3 py-2 rounded-lg">
-                <span>📎</span>
-                <span className="truncate flex-1">{file.name}</span>
-                <span className="text-xs text-gray-400">{(file.size / 1024).toFixed(1)} KB</span>
-                <button type="button" onClick={() => setFile(null)} className="text-gray-400 hover:text-red-500">×</button>
+              <div className="mt-3 flex items-center gap-3 text-sm text-brand-primary bg-brand-light/50 border border-brand-primary/20 px-4 py-3 rounded-xl">
+                <span className="text-brand-primary"><Paperclip size={16} /></span>
+                <span className="truncate flex-1 font-medium">{file.name}</span>
+                <span className="text-xs text-brand-primary font-semibold bg-white/50 px-2 py-0.5 rounded-md">{(file.size / 1024).toFixed(1)} KB</span>
+                <button type="button" onClick={() => setFile(null)} className="p-1 hover:bg-red-100 hover:text-red-600 rounded-md transition-colors"><X size={14} /></button>
               </div>
             )}
             {loading && file && (
-              <p className="text-xs text-brand-600 mt-1">Uploading attachment…</p>
+              <p className="text-xs text-brand-primary mt-2 font-medium animate-pulse">Uploading attachment…</p>
             )}
           </div>
 
-          <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="btn-ghost">Cancel</button>
-            <button type="submit" disabled={loading} className="btn-primary">
+          <div className="flex justify-end gap-3 pt-4 border-t border-surface-border">
+            <button type="button" onClick={onClose} className="btn-ghost px-6">Cancel</button>
+            <button type="submit" disabled={loading} className="btn-primary px-8">
               {loading ? (isEditMode ? 'Saving…' : 'Posting…') : (isEditMode ? 'Save Changes' : 'Create Post')}
             </button>
           </div>

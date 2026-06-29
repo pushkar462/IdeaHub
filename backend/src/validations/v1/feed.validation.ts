@@ -21,11 +21,11 @@ export const getFeedSchema = z.object({
   query: z.object({
     cursor: cursorSchema,
     limit: feedLimitSchema,
-    category: z.enum(['BUG', 'IMPROVEMENT', 'SUGGESTION', 'FEATURE', 'IDEA', 'DISCUSSION', 'PROBLEM']).optional(),
-    status: z.enum(['BACKLOG', 'TODO', 'IN_PROGRESS', 'IN_REVIEW', 'BLOCKED', 'DONE', 'ALL']).optional(),
-    priority: z.enum(['LOW', 'MEDIUM', 'HIGH']).optional(),
+    type: z.enum(['QUESTION', 'PROBLEM', 'IDEA']).optional(),
+    section: z.enum(['BILLS', 'INVOICING', 'PATIENTS', 'CASES', 'PARTNERS', 'HOSPITALS', 'DOCTORS', 'WHATSAPP', 'PLATFORM', 'GENERAL']).optional(),
+    status: z.enum(['OPEN', 'DISCUSSING', 'RESOLVED', 'ALL']).optional(),
     search: z.string().optional(), // Left in for now, ILIKE search
-    assigneeId: z.union([z.string(), z.number()]).optional().transform(val => val ? Number(val) : undefined),
+    ownerId: z.union([z.string(), z.number()]).optional().transform(val => val ? Number(val) : undefined),
     authorId: z.union([z.string(), z.number()]).optional().transform(val => val ? Number(val) : undefined),
   }).strict()
 });

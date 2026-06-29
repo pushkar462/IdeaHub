@@ -33,14 +33,14 @@ export class AssignmentRecommendationService {
       where: {
         departmentId,
         assigneeId: { in: users.map(u => u.id) },
-        status: { notIn: ['DONE', 'BACKLOG'] }
+        status: { notIn: ['RESOLVED', 'OPEN'] }
       },
-      _count: { id: true }
+      _count: { _all: true }
     });
 
     const workloadMap = new Map<number, number>();
     for (const task of activeTasks) {
-      if (task.assigneeId) workloadMap.set(task.assigneeId, task._count.id);
+      if (task.assigneeId) workloadMap.set(task.assigneeId, task._count._all);
     }
 
     // 3. Score candidates (Lowest workload wins for now)

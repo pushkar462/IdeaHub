@@ -31,11 +31,11 @@ const RegisterPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-brand-50 via-white to-brand-100
+    <div className="min-h-screen bg-gradient-to-br from-brand-light/50 via-white to-brand-light
                     flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="w-14 h-14 bg-brand-500 rounded-2xl flex items-center justify-center
+          <div className="w-14 h-14 bg-brand-primary rounded-2xl flex items-center justify-center
                           text-white font-bold text-2xl mx-auto mb-4 shadow-lg">
             A
           </div>
@@ -117,8 +117,8 @@ const RegisterPage: React.FC = () => {
                     onClick={() => setForm({ ...form, role: value })}
                     className={`px-3 py-2 rounded-lg text-sm border transition-all
                       ${form.role === value
-                        ? 'border-brand-500 bg-brand-50 text-brand-700 font-medium'
-                        : 'border-surface-border text-gray-600 hover:border-brand-300'
+                        ? 'border-brand-primary bg-brand-light text-brand-primary font-bold'
+                        : 'border-surface-border text-gray-600 hover:border-brand-primary/50'
                       }`}
                   >
                     {label}
@@ -148,7 +148,7 @@ const RegisterPage: React.FC = () => {
 
           <p className="text-center text-sm text-gray-500 mt-6">
             Already have an account?{' '}
-            <Link to="/login" className="text-brand-500 font-medium hover:underline">
+            <Link to="/login" className="text-brand-primary font-medium hover:underline">
               Sign in
             </Link>
           </p>

@@ -1,5 +1,6 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["fullTextSearchPostgres"]
 }
 
 datasource db {
@@ -16,29 +17,39 @@ enum Role {
   AI_ML
 }
 
-enum PostCategory {
-  BUG
-  IMPROVEMENT
-  SUGGESTION
-  FEATURE
-  IDEA
-  DISCUSSION
+enum Type {
+  QUESTION
   PROBLEM
+  IDEA
 }
 
-enum WorkflowStatus {
-  BACKLOG
-  TODO
-  IN_PROGRESS
-  IN_REVIEW
-  BLOCKED
-  DONE
+enum Status {
+  OPEN
+  DISCUSSING
+  RESOLVED
 }
 
-enum Priority {
-  LOW
-  MEDIUM
-  HIGH
+enum Section {
+  BILLS
+  INVOICING
+  PATIENTS
+  CASES
+  PARTNERS
+  HOSPITALS
+  DOCTORS
+  WHATSAPP
+  PLATFORM
+  GENERAL
+}
+
+enum Resolution {
+  ANSWERED
+  FIXED
+  APPROVED
+  PARKED
+  DECLINED
+  DUPLICATE
+  RULE_DECIDED
 }
 
 model Department {
@@ -71,6 +82,8 @@ model User {
 
   posts         Post[]     @relation("AuthorPosts")
   assignedPosts Post[]     @relation("AssigneePosts")
+  ownedPosts    Post[]     @relation("OwnerPosts")
+  sectionOwnerships SectionOwnership[]
   comments      Comment[]
   reactions     Reaction[]
 
@@ -90,10 +103,18 @@ model Post {
   id          Int            @id @default(autoincrement())
   title       String
   description String
-  category    PostCategory
-  status      WorkflowStatus @default(BACKLOG)
-  priority    Priority       @default(MEDIUM)
-  tags        String[]       @default([])
+  postNumber       String       @unique
+  type             Type
+  status           Status       @default(OPEN)
+  section          Section
+  resolution       Resolution?
+  resolutionReason String?
+  isUseCase        Boolean      @default(false)
+  ownerId          Int?
+  owner            User?        @relation("OwnerPosts", fields: [ownerId], references: [id])
+  acknowledgedAt   DateTime?
+  linkedEntityType String?
+  linkedEntityId   String?
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
 
@@ -117,8 +138,8 @@ model Post {
   @@unique([createdAt, id])
   @@index([createdAt])
   @@index([status])
-  @@index([priority])
-  @@index([category])
+  @@index([type])
+  @@index([section])
   @@index([authorId])
   @@index([assigneeId])
   // Phase 3B Enterprise Indexing
@@ -233,6 +254,10 @@ enum AuditActionType {
   POST_CREATED
   POST_UPDATED
   STATUS_CHANGED
+  POST_ACKNOWLEDGED
+  POST_RESOLVED
+  POST_REOPENED
+  USE_CASE_GRADUATED
   ASSIGNED
   UNASSIGNED
   DEPARTMENT_CHANGED
@@ -271,6 +296,13 @@ model AuditLog {
   @@index([actionType, createdAt])
 }
 
+model SectionOwnership {
+  id       Int     @id @default(autoincrement())
+  section  Section @unique
+  ownerId  Int
+  owner    User    @relation(fields: [ownerId], references: [id])
+}
+
 // ============================================
 // PHASE 5: SLA METRICS & RBAC
 // ============================================
@@ -293,10 +325,8 @@ model WorkflowMetrics {
   currentStatusStartedAt DateTime? // Active duration tracking
 
   // Accumulated durations (seconds)
-  totalTimeInTodo     Int @default(0)
-  totalTimeInProgress Int @default(0)
-  totalTimeInReview   Int @default(0)
-  totalTimeBlocked    Int @default(0)
+  totalTimeInOpen       Int @default(0)
+  totalTimeInDiscussing Int @default(0)
 
   slaStatus SLAStatus @default(HEALTHY)
 

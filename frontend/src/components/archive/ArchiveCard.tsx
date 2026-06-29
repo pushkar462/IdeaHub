@@ -6,7 +6,7 @@ import StatusBadge from '@/components/posts/StatusBadge';
 
 interface Props { post: Post }
 
-const categoryIcon: Record<string, string> = {
+const typeIcon: Record<string, string> = {
   BUG: '🐛', IMPROVEMENT: '⚡', SUGGESTION: '💬',
   FEATURE: '🚀', IDEA: '💡', DISCUSSION: '🗨️', PROBLEM: '⚠️',
 };
@@ -14,11 +14,11 @@ const categoryIcon: Record<string, string> = {
 const ArchiveCard: React.FC<Props> = ({ post }) => (
   <div className="card p-5 hover:shadow-md transition-shadow animate-in">
     <div className="flex items-start gap-3 mb-3">
-      <span className="text-2xl">{categoryIcon[post.category] ?? '📄'}</span>
+      <span className="text-2xl">{typeIcon[post.type] ?? '📄'}</span>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-1 flex-wrap">
           <StatusBadge status={post.status} />
-          <span className="badge bg-gray-100 text-gray-500 text-xs">{post.category}</span>
+          <span className="badge bg-gray-100 text-gray-500 text-xs">{post.type}</span>
         </div>
         <Link to={`/post/${post.id}`} className="group">
           <h3 className="font-semibold text-gray-900 group-hover:text-brand-600 transition-colors truncate">
@@ -29,13 +29,7 @@ const ArchiveCard: React.FC<Props> = ({ post }) => (
       </div>
     </div>
 
-    {post.tags?.length > 0 && (
-      <div className="flex flex-wrap gap-1 mb-3">
-        {post.tags.map((tag) => (
-          <span key={tag} className="badge bg-surface text-gray-400 text-xs">#{tag}</span>
-        ))}
-      </div>
-    )}
+
 
     <div className="flex items-center justify-between text-xs text-gray-400">
       <div className="flex items-center gap-2">

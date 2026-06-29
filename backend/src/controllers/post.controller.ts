@@ -6,9 +6,12 @@ import { successResponse } from '../utils/response.util';
 import { storageService } from '../services/storage/storage.service';
 import { mentionService } from '../services/mention.service';
 
+import { getSectionOwner } from '../utils/section.util';
+import { Type, Section, Status } from '@prisma/client';
+
 /* ---------- CREATE POST ---------- */
 export const createPost = async (req: Request, res: Response) => {
-  const { title, description, category, tags, priority, assigneeId, departmentId } = req.body;
+  const { title, description, type, section, isUseCase, linkedEntityType, linkedEntityId } = req.body;
   const authorId = req.user!.id;
 
   let attachmentData = null;
@@ -35,40 +38,59 @@ export const createPost = async (req: Request, res: Response) => {
     }
   }
 
-  const post = await prisma.post.create({
-    data: {
-      title,
-      description,
-      category,
-      tags: tags ? (Array.isArray(tags) ? tags : [tags]) : [],
-      priority: priority || 'MEDIUM',
-      authorId,
-      assigneeId: assigneeId ? Number(assigneeId) : undefined,
-      departmentId: departmentId ? Number(departmentId) : undefined,
-      status: 'BACKLOG',
-      attachments: attachmentData ? {
-        create: [{
-          url: attachmentData.url,
-          filename: attachmentData.filename,
-          mimeType: req.file!.mimetype,
-        }]
-      } : undefined
-    },
-    include: { author: { select: { id: true, name: true, role: true, avatarUrl: true } }, attachments: true },
+  // Generate postNumber
+  const year = new Date().getFullYear();
+  const count = await prisma.post.count({
+    where: { createdAt: { gte: new Date(`${year}-01-01`), lt: new Date(`${year + 1}-01-01`) } }
   });
+  const seq = String(count + 1).padStart(4, '0');
+  const postNumber = `LOOP-${year}-${seq}`;
+
+  const ownerId = await getSectionOwner(section as Section);
+
+  let post;
+  try {
+    post = await prisma.post.create({
+      data: {
+        postNumber,
+        title,
+        description,
+        type,
+        section,
+        isUseCase: isUseCase || false,
+        linkedEntityType,
+        linkedEntityId,
+        ownerId,
+        authorId,
+        status: Status.OPEN,
+        attachments: attachmentData ? {
+          create: [{
+            url: attachmentData.url,
+            filename: attachmentData.filename,
+            mimeType: req.file!.mimetype,
+          }]
+        } : undefined
+      },
+      include: { author: { select: { id: true, name: true, role: true, avatarUrl: true } }, attachments: true },
+    });
+  } catch (error: any) {
+    require('fs').writeFileSync('/tmp/prisma_error.log', String(error) + '\n' + JSON.stringify(error, null, 2));
+    console.error("PRISMA ERROR DETAILS:", error);
+    throw error;
+  }
 
   // Fire-and-forget side effects — never let these crash the main response
   Promise.all([
     mentionService.processMentions({ text: description, authorId, postId: post.id }).catch(e =>
       console.warn('processMentions failed:', e)
     ),
-    assigneeId && Number(assigneeId) !== authorId
+    ownerId && ownerId !== authorId
       ? notificationService.createNotification({
-          userId: Number(assigneeId),
-          type: 'ASSIGNMENT',
+          userId: ownerId,
+          type: 'ASSIGNMENT', // Using ASSIGNMENT type for ownership alert for now
           actorId: authorId,
           postId: post.id,
-        }, undefined).catch(e => console.warn('assignee notification failed:', e))
+        }, undefined).catch(e => console.warn('owner notification failed:', e))
       : Promise.resolve(),
   ]).catch(() => {});
 
@@ -87,10 +109,10 @@ export const getFeed = async (req: Request, res: Response) => {
   const result = await feedService.getFeed({
     cursor: query.cursor,
     limit: query.limit,
-    category: query.category,
+    type: query.type,
+    section: query.section,
     status: query.status,
-    priority: query.priority,
-    assigneeId: query.assigneeId,
+    ownerId: query.ownerId,
     authorId: query.authorId,
     search: query.search,
   });
@@ -119,7 +141,7 @@ export const getPost = async (req: Request, res: Response) => {
       reactions: true,
       attachments: true,
       department: { select: { id: true, name: true, slug: true } },
-      workflowMetrics: { select: { slaStatus: true, totalTimeBlocked: true, aiSummaryCache: true } },
+      workflowMetrics: { select: { slaStatus: true, aiSummaryCache: true } },
       _count: { select: { comments: { where: { parentId: null } } } }
     },
   });
@@ -136,7 +158,6 @@ import { notificationService } from '../services/notification.service';
 import { workflowService } from '../services/workflow.service';
 import { auditService } from '../services/audit.service';
 import { eventBus, INTERNAL_EVENTS } from '../services/events/internal.emitter';
-import { WorkflowStatus } from '@prisma/client';
 
 /* ---------- UPDATE POST STATUS (AND ASSIGNEE) ---------- */
 export const updateStatus = async (req: Request, res: Response) => {
@@ -163,7 +184,7 @@ export const updateStatus = async (req: Request, res: Response) => {
   // 1. Guarded Workflow Transition
   if (status) {
     // This will throw if the transition is mathematically invalid
-    post = await workflowService.transitionStatus(id, status as WorkflowStatus, actorId);
+    post = await workflowService.transitionStatus(id, status as Status, actorId);
   }
 
   // 2. Assigment Logic
@@ -376,16 +397,16 @@ export const getStats = async (req: Request, res: Response) => {
 
   const [totalActive, myActiveTasks, needReview, completed] = await Promise.all([
     // Total active posts across the entire platform
-    prisma.post.count({ where: { status: { not: 'DONE' } } }),
-    // Tasks assigned to me that are not DONE
-    prisma.post.count({ where: { assigneeId: userId, status: { not: 'DONE' } } }),
-    // Posts waiting for review
-    prisma.post.count({ where: { status: 'IN_REVIEW' } }),
-    // Total posts I have authored or been assigned to that are DONE
+    prisma.post.count({ where: { status: { not: Status.RESOLVED } } }),
+    // Tasks assigned to me (owned) that are not RESOLVED
+    prisma.post.count({ where: { ownerId: userId, status: { not: Status.RESOLVED } } }),
+    // Posts waiting for review (we can use OPEN as an approximation for now)
+    prisma.post.count({ where: { status: Status.OPEN } }),
+    // Total posts I have authored or been assigned to that are RESOLVED
     prisma.post.count({
       where: {
-        status: 'DONE',
-        OR: [{ authorId: userId }, { assigneeId: userId }],
+        status: Status.RESOLVED,
+        OR: [{ authorId: userId }, { ownerId: userId }],
       },
     }),
   ]);

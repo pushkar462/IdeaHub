@@ -8,7 +8,7 @@ import { AppError } from '../utils/AppError';
 export const getArchive = async (req: Request, res: Response) => {
   const { search, category } = req.query;
 
-  const where: any = { status: 'DONE' };
+  const where: any = { status: 'RESOLVED' };
 
   if (search) {
     where.OR = [
@@ -46,7 +46,7 @@ export const archivePost = async (req: Request, res: Response) => {
 
   const updated = await prisma.post.update({
     where: { id },
-    data: { status: 'DONE' },
+    data: { status: 'RESOLVED' },
   });
   return successResponse(res, 'Post archived', updated);
 };

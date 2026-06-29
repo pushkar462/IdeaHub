@@ -13,17 +13,9 @@ export interface User {
 }
 
 // ── Post ──────────────────────────────────────────────
-export type PostCategory =
-  | 'BUG'
-  | 'IMPROVEMENT'
-  | 'SUGGESTION'
-  | 'FEATURE'
-  | 'IDEA'
-  | 'DISCUSSION'
-  | 'PROBLEM';
-
-export type PostStatus = 'BACKLOG' | 'TODO' | 'IN_PROGRESS' | 'IN_REVIEW' | 'BLOCKED' | 'DONE';
-export type Priority = 'LOW' | 'MEDIUM' | 'HIGH';
+export type PostType = 'QUESTION' | 'PROBLEM' | 'IDEA';
+export type PostSection = 'BILLS' | 'INVOICING' | 'PATIENTS' | 'CASES' | 'PARTNERS' | 'HOSPITALS' | 'DOCTORS' | 'WHATSAPP' | 'PLATFORM' | 'GENERAL';
+export type PostStatus = 'OPEN' | 'DISCUSSING' | 'RESOLVED';
 
 export interface Reaction {
   id: number;
@@ -42,23 +34,24 @@ export interface Attachment {
 
 export interface Post {
   id: number;
+  postNumber: string;
   title: string;
   description: string;
-  category: PostCategory;
+  type: PostType;
+  section: PostSection;
   status: PostStatus;
-  priority: Priority;
-  tags: string[];
+  resolution?: string;
+  isUseCase: boolean;
   createdAt: string;
   updatedAt: string;
   author: User;
   authorId: number;
-  assignee?: User;
-  assigneeId?: number;
+  owner?: User;
+  ownerId?: number;
   departmentId?: number;
   department?: { id: number; name: string; slug: string };
   workflowMetrics?: {
     slaStatus: 'HEALTHY' | 'AT_RISK' | 'BREACHED';
-    totalTimeBlocked: number;
     aiSummaryCache?: any;
   } | null;
   reactions: Reaction[];

@@ -24,10 +24,8 @@ export class ProductivityAnalyticsService {
         }
       },
       _avg: {
-        totalTimeInTodo: true,
-        totalTimeInProgress: true,
-        totalTimeInReview: true,
-        totalTimeBlocked: true
+        totalTimeInOpen: true,
+        totalTimeInDiscussing: true
       },
       _count: {
         postId: true
@@ -53,7 +51,7 @@ export class ProductivityAnalyticsService {
       by: ['assigneeId'],
       where: {
         departmentId,
-        status: { notIn: ['DONE', 'BACKLOG'] },
+        status: { notIn: ['RESOLVED', 'OPEN'] },
         createdAt: {
           gte: startDate,
           lte: endDate
@@ -61,14 +59,14 @@ export class ProductivityAnalyticsService {
         assigneeId: { not: null }
       },
       _count: {
-        id: true
+        _all: true
       }
     });
 
     // Format workload mapping safely
     const workloadDistribution = assigneeWorkloadRaw.map(stat => ({
       assigneeId: stat.assigneeId,
-      activeTasks: stat._count.id
+      activeTasks: stat._count._all
     }));
 
     return {
@@ -79,10 +77,8 @@ export class ProductivityAnalyticsService {
         completedIssues: completedCount,
       },
       averageTimes: {
-        todo: aggregations._avg.totalTimeInTodo,
-        inProgress: aggregations._avg.totalTimeInProgress,
-        inReview: aggregations._avg.totalTimeInReview,
-        blocked: aggregations._avg.totalTimeBlocked,
+        open: aggregations._avg.totalTimeInOpen,
+        discussing: aggregations._avg.totalTimeInDiscussing,
       },
       workloadDistribution
     };

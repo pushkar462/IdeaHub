@@ -1,6 +1,6 @@
 import prisma from '../../config/db';
 import { eventBus, INTERNAL_EVENTS } from '../events/internal.emitter';
-import { WorkflowStatus } from '@prisma/client';
+import { Status } from '@prisma/client';
 
 export class WorkflowMetricsService {
   constructor() {
@@ -21,7 +21,7 @@ export class WorkflowMetricsService {
     const { from, to } = payload.auditLog.metadata;
     const transitionTime = new Date(payload.auditLog.createdAt);
 
-    await this.processStatusTransition(postId, from as WorkflowStatus, to as WorkflowStatus, transitionTime);
+    await this.processStatusTransition(postId, from as Status, to as Status, transitionTime);
   }
 
   /**
@@ -29,8 +29,8 @@ export class WorkflowMetricsService {
    */
   public async processStatusTransition(
     postId: number,
-    fromStatus: WorkflowStatus,
-    toStatus: WorkflowStatus,
+    fromStatus: Status,
+    toStatus: Status,
     transitionTime: Date
   ) {
     // Use an explicit transaction to ensure atomic upsert and lock for idempotency
@@ -70,24 +70,20 @@ export class WorkflowMetricsService {
         currentStatusStartedAt: transitionTime
       };
 
-      if (fromStatus === WorkflowStatus.TODO) {
-        updateData.totalTimeInTodo = { increment: durationSeconds };
-      } else if (fromStatus === WorkflowStatus.IN_PROGRESS) {
-        updateData.totalTimeInProgress = { increment: durationSeconds };
-      } else if (fromStatus === WorkflowStatus.IN_REVIEW) {
-        updateData.totalTimeInReview = { increment: durationSeconds };
-      } else if (fromStatus === WorkflowStatus.BLOCKED) {
-        updateData.totalTimeBlocked = { increment: durationSeconds };
+      if (fromStatus === Status.OPEN) {
+        updateData.totalTimeInOpen = { increment: durationSeconds };
+      } else if (fromStatus === Status.DISCUSSING) {
+        updateData.totalTimeInDiscussing = { increment: durationSeconds };
       }
 
       // Special Timestamps
-      if (toStatus === WorkflowStatus.IN_PROGRESS && !metrics.firstResponseAt) {
+      if (toStatus === Status.DISCUSSING && !metrics.firstResponseAt) {
         updateData.firstResponseAt = transitionTime;
       }
       
-      if (toStatus === WorkflowStatus.DONE) {
+      if (toStatus === Status.RESOLVED) {
         updateData.completedAt = transitionTime;
-      } else if (fromStatus === WorkflowStatus.DONE) {
+      } else if (fromStatus === Status.RESOLVED) {
         // Reopened
         updateData.completedAt = null;
       }

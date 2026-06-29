@@ -36,13 +36,7 @@ const IdeaCard: React.FC<Props> = ({ post, onApprove, onReact }) => {
         <p className="text-sm text-gray-500 line-clamp-3">{post.description}</p>
       </Link>
 
-      {post.tags?.length > 0 && (
-        <div className="flex flex-wrap gap-1 mt-3">
-          {post.tags.map((tag) => (
-            <span key={tag} className="badge bg-amber-50 text-amber-600 text-xs">#{tag}</span>
-          ))}
-        </div>
-      )}
+
 
       <div className="flex items-center justify-between mt-4 pt-3 border-t border-surface-border">
         <div className="flex items-center gap-2">
@@ -56,7 +50,7 @@ const IdeaCard: React.FC<Props> = ({ post, onApprove, onReact }) => {
           >
             👍 <span>{thumbsUp}</span>
           </button>
-          {onApprove && (post.status === 'TODO' || post.status === 'BACKLOG') && (
+          {onApprove && (post.status === 'OPEN' || post.status === 'DISCUSSING') && (
             <button
               onClick={() => onApprove(post.id)}
               className="btn-primary text-xs py-1 px-3"

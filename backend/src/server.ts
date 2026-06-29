@@ -5,6 +5,7 @@ import app from './app';
 import { initializeSocketServer } from './socket/socket.server';
 import { initializeSocketEventHandlers } from './socket/socket.events';
 import './services/analytics/workflow-metrics.service'; // Init metric listeners
+import { startSlaCron } from './cron/sla.cron';
 
 const PORT = config.PORT;
 
@@ -22,4 +23,7 @@ startInternalEventHandlers();
 
 httpServer.listen(PORT, () => {
   console.log(`🚀 Server running at http://localhost:${PORT}`);
+
+  // Start Cron Jobs
+  startSlaCron();
 });

@@ -18,7 +18,7 @@ export const apiLimiter = rateLimit({
 // Stricter rate limiter specifically for upload routes to prevent DOS
 export const uploadLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
-  max: 20, // limit each IP to 20 uploads per hour
+  max: 50, // limit each IP to 50 uploads per hour
   message: {
     success: false,
     code: 'UPLOAD_RATE_LIMIT_EXCEEDED',

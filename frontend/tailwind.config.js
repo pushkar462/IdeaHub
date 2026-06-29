@@ -1,53 +1,54 @@
 /** @type {import('tailwindcss').Config} */
-module.exports = {
+export default {
   content: ['./index.html', './src/**/*.{tsx,ts,js,jsx}'],
   theme: {
     extend: {
       colors: {
         brand: {
-          50:  'hsl(230,80%,97%)',
-          100: 'hsl(230,80%,93%)',
-          200: 'hsl(230,75%,85%)',
-          300: 'hsl(230,70%,72%)',
-          400: 'hsl(230,65%,60%)',
-          500: 'hsl(230,60%,50%)',
-          600: 'hsl(230,65%,42%)',
-          700: 'hsl(230,70%,34%)',
-          800: 'hsl(230,75%,26%)',
-          900: 'hsl(230,80%,18%)',
+          primary: '#8018de',
+          light: '#ede3ff',
         },
         surface: {
-          DEFAULT: 'hsl(220,20%,97%)',
-          hover:   'hsl(220,20%,93%)',
-          border:  'hsl(220,15%,88%)',
+          DEFAULT: '#ffffff',
+          hover: '#f9fafb', // gray-50
+          border: '#e5e7eb', // gray-200
+          muted: '#737373', // brand gray
         },
-        dark: {
-          bg:      'hsl(225,25%,10%)',
-          card:    'hsl(225,20%,14%)',
-          border:  'hsl(225,20%,22%)',
-          muted:   'hsl(225,15%,50%)',
+        accent: {
+          cyan: '#77f0ec',
+          lime: '#e5f800',
+          yellow: '#fec530',
+          orange: '#f15d24',
+          blue: '#0a6dd8',
+          green: '#2ac25d',
         },
+        neutral: {
+          light: '#e2e2e2',
+          DEFAULT: '#737373',
+          dark: '#404040',
+        }
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        // Will use Outfit as the fallback for Smooldhan
+        sans: ['Outfit', 'system-ui', 'sans-serif'],
       },
       boxShadow: {
-        card: '0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.06)',
-        modal: '0 8px 40px rgba(0,0,0,0.18)',
-      },
-      borderRadius: {
-        xl: '1rem',
-        '2xl': '1.25rem',
+        card: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
+        'card-hover': '0 10px 15px -3px rgba(128, 24, 222, 0.1), 0 4px 6px -2px rgba(128, 24, 222, 0.05)',
+        glow: '0 0 20px rgba(128, 24, 222, 0.15)', // primary purple glow
       },
       animation: {
-        'fade-in': 'fadeIn 0.2s ease-out',
-        'slide-up': 'slideUp 0.25s ease-out',
+        'fade-in': 'fadeIn 0.3s ease-out forwards',
+        'slide-up': 'slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards',
       },
       keyframes: {
-        fadeIn: { from: { opacity: '0' }, to: { opacity: '1' } },
+        fadeIn: { 
+          '0%': { opacity: '0' }, 
+          '100%': { opacity: '1' } 
+        },
         slideUp: {
-          from: { opacity: '0', transform: 'translateY(12px)' },
-          to:   { opacity: '1', transform: 'translateY(0)' },
+          '0%': { opacity: '0', transform: 'translateY(16px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
         },
       },
     },

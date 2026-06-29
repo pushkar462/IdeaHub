@@ -6,9 +6,9 @@ import toast from 'react-hot-toast';
 interface PostFilters {
   search?: string;
   status?: string;
-  category?: string;
-  priority?: string;
-  assigneeId?: number;
+  type?: string;
+  section?: string;
+  ownerId?: number;
   authorId?: number;
 }
 
