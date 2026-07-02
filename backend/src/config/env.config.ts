@@ -10,4 +10,9 @@ export const config = cleanEnv(process.env, {
   NODE_ENV: str({ choices: ['development', 'test', 'production'], default: 'development' }),
   GROQ_API_KEY: str({ default: '', desc: 'Groq API key for AI summarization' }),
   GROK_API_KEY: str({ default: '', desc: 'Grok API key for AI summarization' }),
+  CORS_ORIGIN: str({ default: '', desc: 'Comma-separated list of allowed frontend origins (e.g. https://app.vercel.app). Empty = allow all (dev only).' }),
+  STORAGE_PROVIDER: str({ choices: ['local', 'supabase'], default: 'local', desc: 'File storage backend' }),
+  SUPABASE_URL: str({ default: '', desc: 'Supabase project URL (required when STORAGE_PROVIDER=supabase)' }),
+  SUPABASE_SERVICE_ROLE_KEY: str({ default: '', desc: 'Supabase service role key (required when STORAGE_PROVIDER=supabase)' }),
+  SUPABASE_STORAGE_BUCKET: str({ default: 'uploads', desc: 'Supabase Storage bucket name' }),
 });

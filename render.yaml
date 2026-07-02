@@ -1,0 +1,35 @@
+services:
+  - type: web
+    name: athwart-loop-backend
+    runtime: node
+    plan: free
+    rootDir: backend
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    # Pre-deploy commands are not reliably available on the free instance type.
+    # Run `npx prisma migrate deploy` manually (or via Render's Shell tab) after
+    # each deploy that includes new migrations — do NOT put it in buildCommand,
+    # that caused a build failure previously (see commits df0b0b2 / c43c831).
+    # preDeployCommand: npx prisma migrate deploy
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false # Supabase connection pooling URL (port 6543, pgbouncer)
+      - key: JWT_SECRET
+        generateValue: true
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GROK_API_KEY
+        sync: false
+      - key: CORS_ORIGIN
+        sync: false # e.g. https://your-app.vercel.app
+      - key: STORAGE_PROVIDER
+        value: supabase
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_STORAGE_BUCKET
+        value: uploads

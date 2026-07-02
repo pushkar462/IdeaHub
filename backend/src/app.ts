@@ -14,11 +14,19 @@ import intelligenceRoutes from './routes/v1/intelligence.route';
 import departmentRoutes from './routes/v1/department.route';
 import { errorHandler } from './middleware/error.middleware';
 import { tracingMiddleware } from './middleware/tracing.middleware';
+import { config } from './config/env.config';
 
 const app = express();
 
+const allowedOrigins = config.CORS_ORIGIN
+  ? config.CORS_ORIGIN.split(',').map((o) => o.trim())
+  : null;
+
 app.use(tracingMiddleware());
-app.use(cors({ origin: '*', credentials: true }));
+app.use(cors({
+  origin: allowedOrigins ?? '*',
+  credentials: true,
+}));
 app.use(helmet());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -45,17 +53,6 @@ app.use('/api/users', userRoutes);
 
 // Health check
 app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
-
-// Temporary Migration Endpoint
-app.get('/api/migrate-db-force', (_req, res) => {
-  try {
-    const { execSync } = require('child_process');
-    const output = execSync('npx prisma migrate deploy').toString();
-    res.send(`<pre>Migration successful:\n${output}</pre>`);
-  } catch (error: any) {
-    res.status(500).send(`<pre>Migration failed:\n${error.message}\n${error.stdout?.toString()}\n${error.stderr?.toString()}</pre>`);
-  }
-});
 
 // Global error handler (must be last)
 app.use(errorHandler);

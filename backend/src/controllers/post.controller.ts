@@ -260,7 +260,7 @@ export const updatePost = async (req: Request, res: Response) => {
   for (const attId of removeIds) {
     const attachment = existing.attachments.find((a) => a.id === attId);
     if (attachment) {
-      const key = attachment.url.replace(/^\/uploads\//, '');
+      const key = storageService.extractKey(attachment.url);
       await storageService.delete(key).catch((e) => console.warn('Failed to delete attachment file:', e));
       await prisma.attachment.delete({ where: { id: attachment.id } });
     }
@@ -381,7 +381,7 @@ export const deletePost = async (req: Request, res: Response) => {
 
   // Clean up attachment files from storage
   for (const attachment of post.attachments) {
-    const key = attachment.url.replace(/^\/uploads\//, '');
+    const key = storageService.extractKey(attachment.url);
     await storageService.delete(key).catch((e) =>
       console.warn(`Failed to delete attachment file ${key}:`, e)
     );

@@ -1,13 +1,16 @@
 import { StorageProvider, UploadCategory, UploadResult } from './storage.provider.interface';
 import { LocalStorageProvider } from './local.storage.provider';
+import { SupabaseStorageProvider } from './supabase.storage.provider';
+import { config } from '../../config/env.config';
 
 class StorageService {
   private provider: StorageProvider;
 
   constructor() {
-    // In the future, this can switch based on env config:
-    // this.provider = process.env.NODE_ENV === 'production' ? new S3StorageProvider() : new LocalStorageProvider();
-    this.provider = new LocalStorageProvider();
+    this.provider =
+      config.STORAGE_PROVIDER === 'supabase'
+        ? new SupabaseStorageProvider()
+        : new LocalStorageProvider();
   }
 
   public async upload(
@@ -26,6 +29,10 @@ class StorageService {
 
   public getUrl(key: string): string {
     return this.provider.getUrl(key);
+  }
+
+  public extractKey(url: string): string {
+    return this.provider.extractKey(url);
   }
 }
 

@@ -72,4 +72,8 @@ export class LocalStorageProvider implements StorageProvider {
   public getUrl(key: string): string {
     return `/uploads/${key}`;
   }
+
+  public extractKey(url: string): string {
+    return url.replace(/^\/uploads\//, '');
+  }
 }
