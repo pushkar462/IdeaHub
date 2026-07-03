@@ -6,7 +6,7 @@ import { AppError } from '../utils/AppError';
 
 /* ---------- GET ARCHIVE ---------- */
 export const getArchive = async (req: Request, res: Response) => {
-  const { search, category } = req.query;
+  const { search, type, section } = req.query;
 
   const where: any = { status: 'RESOLVED' };
 
@@ -16,7 +16,8 @@ export const getArchive = async (req: Request, res: Response) => {
       { description: { contains: String(search), mode: 'insensitive' } },
     ];
   }
-  if (category) where.category = String(category);
+  if (type) where.type = String(type);
+  if (section) where.section = String(section);
 
   const posts = await prisma.post.findMany({
     where,

@@ -5,6 +5,7 @@ import { successResponse } from '../utils/response.util';
 import { assignmentRecommendationService } from '../services/intelligence/assignment-recommendation.service';
 import { workflowSummaryService } from '../services/intelligence/workflow-summary.service';
 import { duplicateCheckService } from '../services/intelligence/duplicate-check.service';
+import { draftResponseService } from '../services/intelligence/draft-response.service';
 import prisma from '../config/db';
 
 /* ---------- RECOMMEND ASSIGNEE ---------- */
@@ -76,4 +77,37 @@ export const checkDuplicate = async (req: Request, res: Response) => {
 
   const result = await duplicateCheckService.checkForDuplicates(title, body);
   return successResponse(res, 'Duplicate check completed', result);
+};
+
+/* ---------- DRAFT RESPONSE (E2) ---------- */
+// Owner-only. Retrieval-grounded draft the owner reads, edits, and posts as
+// their own comment. Model cannot post or resolve — that's a hard guardrail.
+export const draftResponse = async (req: Request, res: Response) => {
+  const postId = Number(req.params.postId);
+  if (isNaN(postId)) {
+    throw new AppError('Invalid post ID', StatusCodes.BAD_REQUEST, 'INVALID_ID');
+  }
+
+  const post = await prisma.post.findUnique({
+    where: { id: postId },
+    select: { ownerId: true, status: true },
+  });
+  if (!post) {
+    throw new AppError('Post not found', StatusCodes.NOT_FOUND, 'NOT_FOUND');
+  }
+
+  const requester = req.user!;
+  const isOwner = post.ownerId === requester.id;
+  const isPrivileged = requester.role === 'ADMIN' || requester.role === 'FOUNDER';
+  if (!isOwner && !isPrivileged) {
+    throw new AppError('Only the assigned owner can generate a draft response', StatusCodes.FORBIDDEN, 'FORBIDDEN');
+  }
+
+  if (post.status === 'RESOLVED') {
+    // Nothing to draft — post is closed.
+    return successResponse(res, 'Post already resolved', { draft: null, sources: [], confidence: 'none' });
+  }
+
+  const result = await draftResponseService.draftForPost(postId);
+  return successResponse(res, 'Draft generated', result);
 };

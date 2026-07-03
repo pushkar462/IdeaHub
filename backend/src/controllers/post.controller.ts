@@ -419,3 +419,55 @@ export const getStats = async (req: Request, res: Response) => {
     completed,
   });
 };
+
+/* ---------- GET SLA HEALTH ---------- */
+// Admin/Founder only. Surfaces the "black-hole rate" — the share of currently-Open posts
+// past the 48h acknowledge window with no acknowledgedAt — plus slaStatus counts and
+// average time-to-acknowledge on posts that were acknowledged.
+export const getSlaHealth = async (req: Request, res: Response) => {
+  const role = req.user!.role;
+  if (role !== 'ADMIN' && role !== 'FOUNDER') {
+    throw new AppError('SLA dashboard is restricted to Admin/Founder', StatusCodes.FORBIDDEN, 'FORBIDDEN');
+  }
+
+  const ACK_WINDOW_MS = 48 * 60 * 60 * 1000;
+  const windowCutoff = new Date(Date.now() - ACK_WINDOW_MS);
+
+  const [openTotal, blackHoleCount, statusHealthy, statusAtRisk, statusBreached, ackSample] = await Promise.all([
+    prisma.post.count({ where: { status: Status.OPEN } }),
+    prisma.post.count({
+      where: { status: Status.OPEN, acknowledgedAt: null, createdAt: { lt: windowCutoff } },
+    }),
+    prisma.workflowMetrics.count({ where: { slaStatus: 'HEALTHY' } }),
+    prisma.workflowMetrics.count({ where: { slaStatus: 'AT_RISK' } }),
+    prisma.workflowMetrics.count({ where: { slaStatus: 'BREACHED' } }),
+    prisma.post.findMany({
+      where: { acknowledgedAt: { not: null } },
+      select: { createdAt: true, acknowledgedAt: true },
+      orderBy: { acknowledgedAt: 'desc' },
+      take: 500,
+    }),
+  ]);
+
+  const ackDeltas = ackSample
+    .map((p) => (p.acknowledgedAt ? p.acknowledgedAt.getTime() - p.createdAt.getTime() : null))
+    .filter((n): n is number => n !== null && n >= 0);
+  const avgTimeToAcknowledgeMs = ackDeltas.length
+    ? Math.round(ackDeltas.reduce((s, n) => s + n, 0) / ackDeltas.length)
+    : null;
+
+  const blackHoleRate = openTotal > 0 ? blackHoleCount / openTotal : 0;
+
+  return successResponse(res, 'SLA health retrieved', {
+    openTotal,
+    blackHoleCount,
+    blackHoleRate,
+    slaStatusCounts: {
+      HEALTHY: statusHealthy,
+      AT_RISK: statusAtRisk,
+      BREACHED: statusBreached,
+    },
+    avgTimeToAcknowledgeMs,
+    sampleSize: ackDeltas.length,
+  });
+};

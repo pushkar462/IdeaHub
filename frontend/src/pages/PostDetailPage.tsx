@@ -11,7 +11,9 @@ import RenderMentionText from '@/components/shared/RenderMentionText';
 import AttachmentList from '@/components/posts/AttachmentList';
 import CreatePostModal from '@/components/posts/CreatePostModal';
 import ResolveModal from '@/components/posts/ResolveModal';
-import { ArrowLeft, Edit2, Trash2, ThumbsUp, AlertTriangle, MoreVertical, BookOpen } from 'lucide-react';
+import api from '@/api/axios';
+import toast from 'react-hot-toast';
+import { ArrowLeft, Edit2, Trash2, ThumbsUp, AlertTriangle, MoreVertical, BookOpen, Sparkles } from 'lucide-react';
 
 const PostDetailPage: React.FC = () => {
   const { id } = useParams();
@@ -21,6 +23,13 @@ const PostDetailPage: React.FC = () => {
   const [editOpen, setEditOpen] = useState(false);
   const [resolveOpen, setResolveOpen] = useState(false);
   const [useCaseMenuOpen, setUseCaseMenuOpen] = useState(false);
+  const [draftLoading, setDraftLoading] = useState(false);
+  const [draftSeed, setDraftSeed] = useState<{
+    token: string;
+    text: string;
+    sources?: Array<{ postNumber: string | null; title: string; id: number }>;
+    confidence?: 'high' | 'low' | 'none';
+  } | null>(null);
 
   useEffect(() => {
     if (id) fetchPost(Number(id));
@@ -50,6 +59,29 @@ const PostDetailPage: React.FC = () => {
   const handleStatusChange = async (newStatus: string) => {
     await updateStatus(post.id, newStatus);
     await fetchPost(post.id, true);
+  };
+
+  const generateDraft = async () => {
+    if (!post) return;
+    setDraftLoading(true);
+    try {
+      const res = await api.post(`/intelligence/draft-response/${post.id}`);
+      const payload = res.data?.data ?? res.data;
+      if (!payload || !payload.draft) {
+        toast('No relevant resolved posts found — draft manually.', { icon: '📝' });
+      } else {
+        setDraftSeed({
+          token: `${post.id}-${Date.now()}`,
+          text: payload.draft,
+          sources: payload.sources ?? [],
+          confidence: payload.confidence,
+        });
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to generate draft');
+    } finally {
+      setDraftLoading(false);
+    }
   };
 
   const toggleUseCase = async () => {
@@ -198,7 +230,10 @@ const PostDetailPage: React.FC = () => {
         {post.resolution && (
           <div className="mt-8 p-4 bg-blue-500/10 border border-blue-500/20 rounded-xl">
             <h4 className="text-sm font-semibold text-blue-400 mb-2">Resolution</h4>
-            <p className="text-sm text-gray-300">{post.resolution}</p>
+            <p className="text-sm text-gray-700 font-medium">{post.resolution}</p>
+            {post.resolutionReason && (
+              <p className="text-sm text-gray-600 mt-2 italic">{post.resolutionReason}</p>
+            )}
           </div>
         )}
 
@@ -247,17 +282,31 @@ const PostDetailPage: React.FC = () => {
       <AISummary postId={post.id} initialSummary={post.workflowMetrics?.aiSummaryCache} isLocked={isLocked} />
 
       <div className="card p-6 lg:p-8">
-        <h3 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-3">
-          Discussion 
-          <span className="bg-gray-100 text-gray-600 text-xs px-2.5 py-1 rounded-full font-bold">
-            {post.comments?.length ?? 0}
-          </span>
-        </h3>
+        <div className="flex items-center justify-between mb-6 gap-3 flex-wrap">
+          <h3 className="text-lg font-bold text-gray-900 flex items-center gap-3">
+            Discussion
+            <span className="bg-gray-100 text-gray-600 text-xs px-2.5 py-1 rounded-full font-bold">
+              {post.comments?.length ?? 0}
+            </span>
+          </h3>
+          {(isOwner || isFounder) && post.type === 'QUESTION' && (post.status === 'OPEN' || post.status === 'DISCUSSING') && (
+            <button
+              type="button"
+              onClick={generateDraft}
+              disabled={draftLoading}
+              className="text-xs font-bold px-3 py-1.5 rounded-lg border bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100 flex items-center gap-1.5 disabled:opacity-60"
+            >
+              <Sparkles size={14} />
+              {draftLoading ? 'Drafting…' : 'Generate draft response'}
+            </button>
+          )}
+        </div>
         <CommentThread
           comments={post.comments ?? []}
           postId={post.id}
           onRefresh={() => fetchPost(post.id, true)}
           isLocked={isLocked}
+          draftSeed={draftSeed}
         />
       </div>
 

@@ -9,6 +9,7 @@ import {
   deletePost,
   getPostComments,
   getStats,
+  getSlaHealth,
 } from '../controllers/post.controller';
 import { authenticate } from '../middleware/auth.middleware';
 import { uploadRaw, validateMagicBytes } from '../middleware/upload.middleware';
@@ -21,6 +22,7 @@ const router = Router();
 
 router.get('/', authenticate, validate(getFeedSchema), getFeed);
 router.get('/stats', authenticate, getStats);
+router.get('/sla-health', authenticate, getSlaHealth);
 router.post('/', authenticate, uploadLimiter, uploadRaw.single('attachment'), validateMagicBytes, validate(createPostSchema), createPost);
 router.get('/:id', authenticate, getPost);
 router.get('/:id/comments', authenticate, validate(getCommentsSchema), getPostComments);

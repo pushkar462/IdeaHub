@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { authenticate } from '../../middleware/auth.middleware';
-import { recommendAssignee, triggerSummary, checkDuplicate } from '../../controllers/intelligence.controller';
+import { recommendAssignee, triggerSummary, checkDuplicate, draftResponse } from '../../controllers/intelligence.controller';
 import rateLimit from 'express-rate-limit';
 
 const router = Router();
@@ -20,5 +20,6 @@ router.use(authenticate);
 router.get('/recommend-assignee/:departmentId', recommendAssignee);
 router.post('/summary/:postId', aiRateLimiter, triggerSummary);
 router.post('/duplicate-check', aiRateLimiter, checkDuplicate);
+router.post('/draft-response/:postId', aiRateLimiter, draftResponse);
 
 export default router;

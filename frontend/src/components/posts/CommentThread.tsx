@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Comment } from '@/types';
 import Avatar from '@/components/shared/Avatar';
 import api from '@/api/axios';
@@ -13,6 +13,9 @@ interface Props {
   postOwnerId?: number;
   onRefresh: () => void;
   isLocked?: boolean;
+  // AI E2: when this changes (parent stamps a new token per draft), the textarea
+  // is pre-filled with `seededDraft`. Non-empty token strings replace any user text.
+  draftSeed?: { token: string; text: string; sources?: Array<{ postNumber: string | null; title: string; id: number }>; confidence?: 'high' | 'low' | 'none' } | null;
 }
 
 const CommentItem: React.FC<{
@@ -162,15 +165,26 @@ const CommentItem: React.FC<{
   );
 };
 
-const CommentThread: React.FC<Props> = ({ comments, postId, postOwnerId, onRefresh, isLocked }) => {
+const CommentThread: React.FC<Props> = ({ comments, postId, postOwnerId, onRefresh, isLocked, draftSeed }) => {
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(false);
+  const [seededFromDraft, setSeededFromDraft] = useState(false);
+  const [lastDraftToken, setLastDraftToken] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (draftSeed && draftSeed.token && draftSeed.token !== lastDraftToken && draftSeed.text) {
+      setText(draftSeed.text);
+      setSeededFromDraft(true);
+      setLastDraftToken(draftSeed.token);
+    }
+  }, [draftSeed, lastDraftToken]);
 
   const submit = async () => {
     if (!text.trim()) return;
     setLoading(true);
     await api.post('/comments', { postId, content: text });
     setText('');
+    setSeededFromDraft(false);
     setLoading(false);
     onRefresh();
   };
@@ -183,12 +197,35 @@ const CommentThread: React.FC<Props> = ({ comments, postId, postOwnerId, onRefre
           <p className="text-sm text-gray-600">🔒 This post is marked as Done and is locked for new comments.</p>
         </div>
       ) : (
-        <div className="flex gap-3 mb-6">
-          <div className="flex-1 border border-surface-border rounded-lg focus-within:ring-2 focus-within:ring-brand-500 overflow-hidden bg-white">
+        <div className="mb-6">
+          {seededFromDraft && (
+            <div className="mb-2 flex items-center flex-wrap gap-2 bg-purple-50 border border-purple-200 rounded-t-lg px-3 py-2 text-xs text-purple-800">
+              <span className="font-bold">✨ AI draft — review before posting</span>
+              {draftSeed?.confidence && draftSeed.confidence !== 'none' && (
+                <span className={`px-1.5 py-0.5 rounded-md font-semibold ${draftSeed.confidence === 'high' ? 'bg-purple-200' : 'bg-purple-100'}`}>
+                  {draftSeed.confidence} confidence
+                </span>
+              )}
+              {draftSeed?.sources?.map((s) => (
+                <a key={s.id} href={`/posts/${s.id}`} className="badge bg-white border border-purple-200 text-purple-700 hover:bg-purple-100 text-[10px] font-mono">
+                  {s.postNumber ?? `#${s.id}`}
+                </a>
+              ))}
+              <button
+                type="button"
+                onClick={() => { setText(''); setSeededFromDraft(false); }}
+                className="ml-auto text-purple-500 hover:text-purple-700"
+              >
+                Discard draft
+              </button>
+            </div>
+          )}
+        <div className="flex gap-3">
+          <div className={`flex-1 border rounded-lg focus-within:ring-2 focus-within:ring-brand-500 overflow-hidden bg-white ${seededFromDraft ? 'border-purple-200 rounded-t-none' : 'border-surface-border'}`}>
             <MentionsInput
               className="mentions-input text-sm w-full outline-none"
               value={text}
-              onChange={(e) => setText(e.target.value)}
+              onChange={(e) => { setText(e.target.value); if (seededFromDraft && !e.target.value) setSeededFromDraft(false); }}
               placeholder="Write a comment… use @name to mention someone"
               style={{
                 control: { minHeight: 72 },
@@ -206,6 +243,7 @@ const CommentThread: React.FC<Props> = ({ comments, postId, postOwnerId, onRefre
           <button onClick={submit} disabled={loading} className="btn-primary self-end">
             {loading ? '…' : 'Comment'}
           </button>
+        </div>
         </div>
       )}
 

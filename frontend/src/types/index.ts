@@ -41,9 +41,11 @@ export interface Post {
   section: PostSection;
   status: PostStatus;
   resolution?: string;
+  resolutionReason?: string;
   isUseCase: boolean;
   linkedEntityType?: 'BILL' | 'CASE' | 'PARTNER';
   linkedEntityId?: string;
+  acknowledgedAt?: string;
   createdAt: string;
   updatedAt: string;
   author: User;

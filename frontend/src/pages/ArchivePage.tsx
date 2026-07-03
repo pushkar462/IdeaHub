@@ -5,18 +5,20 @@ import ArchiveCard from '@/components/archive/ArchiveCard';
 import Loader from '@/components/shared/Loader';
 import EmptyState from '@/components/shared/EmptyState';
 
-const CATEGORIES = ['', 'BUG', 'IMPROVEMENT', 'SUGGESTION', 'FEATURE', 'IDEA', 'DISCUSSION', 'PROBLEM'];
+const TYPES = ['QUESTION', 'PROBLEM', 'IDEA'];
+const SECTIONS = ['BILLS', 'INVOICING', 'PATIENTS', 'CASES', 'PARTNERS', 'HOSPITALS', 'DOCTORS', 'WHATSAPP', 'PLATFORM', 'GENERAL'];
 
 const ArchivePage: React.FC = () => {
   const [archive, setArchive] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [category, setCategory] = useState('');
+  const [type, setType] = useState('');
+  const [section, setSection] = useState('');
 
   const fetchArchive = async () => {
     setLoading(true);
     try {
-      const { data } = await api.get('/archive', { params: { search, category } });
+      const { data } = await api.get('/archive', { params: { search, type, section } });
       setArchive(data);
     } finally {
       setLoading(false);
@@ -26,7 +28,7 @@ const ArchivePage: React.FC = () => {
   useEffect(() => {
     const timer = setTimeout(fetchArchive, 300);
     return () => clearTimeout(timer);
-  }, [search, category]);
+  }, [search, type, section]);
 
   return (
     <div className="max-w-3xl mx-auto space-y-5">
@@ -47,13 +49,23 @@ const ArchivePage: React.FC = () => {
           onChange={(e) => setSearch(e.target.value)}
         />
         <select
-          className="input sm:w-48"
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
+          className="input sm:w-36"
+          value={type}
+          onChange={(e) => setType(e.target.value)}
         >
-          <option value="">All Categories</option>
-          {CATEGORIES.filter(Boolean).map((c) => (
-            <option key={c} value={c}>{c.replace('_', ' ')}</option>
+          <option value="">All Types</option>
+          {TYPES.map((t) => (
+            <option key={t} value={t}>{t}</option>
+          ))}
+        </select>
+        <select
+          className="input sm:w-40"
+          value={section}
+          onChange={(e) => setSection(e.target.value)}
+        >
+          <option value="">All Sections</option>
+          {SECTIONS.map((s) => (
+            <option key={s} value={s}>{s}</option>
           ))}
         </select>
       </div>

@@ -21,7 +21,28 @@ const ProfilePage: React.FC = () => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [postsLoading, setPostsLoading] = useState(false);
 
+  interface ContribPost {
+    id: number;
+    postNumber?: string;
+    title: string;
+    type: string;
+    section: string;
+    status: string;
+    resolution?: string | null;
+    updatedAt: string;
+  }
+  interface Contributions {
+    raised: ContribPost[];
+    resolved: ContribPost[];
+    answered: ContribPost[];
+    counts: { raised: number; resolved: number; answered: number };
+  }
+  const [contributions, setContributions] = useState<Contributions | null>(null);
+  const [contribLoading, setContribLoading] = useState(false);
+
   const isOwnProfile = !id || Number(id) === currentUser?.id;
+  const canViewContributions =
+    isOwnProfile || currentUser?.role === 'ADMIN' || currentUser?.role === 'FOUNDER';
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -74,6 +95,23 @@ const ProfilePage: React.FC = () => {
     };
     fetchUser();
   }, [id, currentUser, isOwnProfile]);
+
+  useEffect(() => {
+    if (!profileUser || !canViewContributions) {
+      setContributions(null);
+      return;
+    }
+    setContribLoading(true);
+    api
+      .get(`/users/${profileUser.id}/contributions`)
+      .then((res) => {
+        // Backend wraps in { data: ... }; api layer may or may not unwrap
+        const payload = res.data?.data ?? res.data;
+        setContributions(payload);
+      })
+      .catch(() => setContributions(null))
+      .finally(() => setContribLoading(false));
+  }, [profileUser, canViewContributions]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -172,8 +210,95 @@ const ProfilePage: React.FC = () => {
           )}
         </div>
       )}
+
+      {!editing && canViewContributions && (
+        <div className="space-y-4">
+          <h2 className="text-xl font-bold text-gray-900">Contributions</h2>
+          <p className="text-xs text-gray-500 -mt-2">
+            A factual record — no scores, no ranking. Visible to {isOwnProfile ? 'you' : 'admins and the founder'}.
+          </p>
+          {contribLoading || !contributions ? (
+            <Loader />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <ContribPanel
+                label="Posts I raised"
+                items={contributions.raised}
+                count={contributions.counts.raised}
+                emptyLabel="No posts raised yet."
+              />
+              <ContribPanel
+                label="Posts I helped resolve"
+                items={contributions.resolved}
+                count={contributions.counts.resolved}
+                emptyLabel="No resolutions credited yet."
+              />
+              <ContribPanel
+                label="Questions I answered"
+                items={contributions.answered}
+                count={contributions.counts.answered}
+                emptyLabel="No answers credited yet."
+              />
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };
+
+interface ContribPost {
+  id: number;
+  postNumber?: string;
+  title: string;
+  type: string;
+  section: string;
+  status: string;
+  resolution?: string | null;
+  updatedAt: string;
+}
+
+const ContribPanel: React.FC<{
+  label: string;
+  items: ContribPost[];
+  count: number;
+  emptyLabel: string;
+}> = ({ label, items, count, emptyLabel }) => (
+  <div className="card p-4 flex flex-col min-h-[180px]">
+    <div className="flex items-center justify-between mb-3">
+      <h3 className="text-sm font-bold text-gray-700">{label}</h3>
+      <span className="text-xs font-semibold bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{count}</span>
+    </div>
+    {items.length === 0 ? (
+      <div className="text-xs text-gray-400 italic flex-1 flex items-center justify-center">{emptyLabel}</div>
+    ) : (
+      <ul className="space-y-2 text-sm">
+        {items.slice(0, 10).map((p) => (
+          <li key={p.id} className="border-b border-surface-border pb-2 last:border-b-0">
+            <a href={`/posts/${p.id}`} className="text-gray-800 hover:text-brand-primary transition-colors line-clamp-1 font-medium">
+              {p.title}
+            </a>
+            <div className="text-[10px] text-gray-400 mt-0.5 flex items-center gap-1.5 flex-wrap">
+              {p.postNumber && <span className="font-mono">{p.postNumber}</span>}
+              <span>&middot;</span>
+              <span>{p.type}</span>
+              <span>&middot;</span>
+              <span>{p.section}</span>
+              {p.resolution && (
+                <>
+                  <span>&middot;</span>
+                  <span className="text-green-600 font-semibold">{p.resolution}</span>
+                </>
+              )}
+            </div>
+          </li>
+        ))}
+        {items.length > 10 && (
+          <li className="text-[11px] text-gray-400 italic pt-1">+ {items.length - 10} more</li>
+        )}
+      </ul>
+    )}
+  </div>
+);
 
 export default ProfilePage;

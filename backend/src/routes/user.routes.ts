@@ -60,4 +60,82 @@ router.get('/:id/posts', authenticate, async (req: Request, res: Response) => {
   return successResponse(res, 'User posts retrieved', posts);
 });
 
+/* ---------- GET USER CONTRIBUTIONS ---------- */
+// Factual record only — no scores, no ranking. Self + Admin/Founder access.
+//   raised    — posts this user authored
+//   resolved  — posts this user OWNS that reached RESOLVED with a substantive outcome
+//   answered  — posts (not their own) they commented on that later resolved as ANSWERED
+router.get('/:id/contributions', authenticate, async (req: Request, res: Response) => {
+  const id = Number(req.params.id);
+  if (isNaN(id)) throw new AppError('Invalid user ID', StatusCodes.BAD_REQUEST);
+
+  const requester = req.user!;
+  const isSelf = requester.id === id;
+  const isPrivileged = requester.role === 'ADMIN' || requester.role === 'FOUNDER';
+  if (!isSelf && !isPrivileged) {
+    throw new AppError('Contributions are private to the user, Admin, and Founder', StatusCodes.FORBIDDEN, 'FORBIDDEN');
+  }
+
+  const postSelect = {
+    id: true,
+    postNumber: true,
+    title: true,
+    type: true,
+    section: true,
+    status: true,
+    resolution: true,
+    createdAt: true,
+    updatedAt: true,
+  } as const;
+
+  const [raised, resolved, answeredPostIdsRaw] = await Promise.all([
+    prisma.post.findMany({
+      where: { authorId: id },
+      orderBy: { createdAt: 'desc' },
+      select: postSelect,
+    }),
+    prisma.post.findMany({
+      where: {
+        ownerId: id,
+        status: 'RESOLVED',
+        resolution: { in: ['ANSWERED', 'FIXED', 'APPROVED', 'RULE_DECIDED'] },
+      },
+      orderBy: { updatedAt: 'desc' },
+      select: postSelect,
+    }),
+    prisma.comment.findMany({
+      where: {
+        authorId: id,
+        post: {
+          status: 'RESOLVED',
+          resolution: 'ANSWERED',
+          NOT: { authorId: id },
+        },
+      },
+      select: { postId: true },
+      distinct: ['postId'],
+    }),
+  ]);
+
+  const answeredIds = answeredPostIdsRaw.map((c) => c.postId);
+  const answered = answeredIds.length
+    ? await prisma.post.findMany({
+        where: { id: { in: answeredIds } },
+        orderBy: { updatedAt: 'desc' },
+        select: postSelect,
+      })
+    : [];
+
+  return successResponse(res, 'Contributions retrieved', {
+    raised,
+    resolved,
+    answered,
+    counts: {
+      raised: raised.length,
+      resolved: resolved.length,
+      answered: answered.length,
+    },
+  });
+});
+
 export default router;
