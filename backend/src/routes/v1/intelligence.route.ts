@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { authenticate } from '../../middleware/auth.middleware';
-import { recommendAssignee, triggerSummary } from '../../controllers/intelligence.controller';
+import { recommendAssignee, triggerSummary, checkDuplicate } from '../../controllers/intelligence.controller';
 import rateLimit from 'express-rate-limit';
 
 const router = Router();
@@ -19,5 +19,6 @@ router.use(authenticate);
 // These routes are inherently read-heavy or trigger async side-effects, so they just need auth
 router.get('/recommend-assignee/:departmentId', recommendAssignee);
 router.post('/summary/:postId', aiRateLimiter, triggerSummary);
+router.post('/duplicate-check', aiRateLimiter, checkDuplicate);
 
 export default router;

@@ -24,6 +24,8 @@ const emptyForm = {
   type: 'QUESTION',
   section: 'GENERAL',
   isUseCase: false,
+  linkedEntityType: '' as '' | 'BILL' | 'CASE' | 'PARTNER',
+  linkedEntityId: '',
 };
 
 const CreatePostModal: React.FC<Props> = ({ isOpen, onClose, post }) => {
@@ -36,6 +38,34 @@ const CreatePostModal: React.FC<Props> = ({ isOpen, onClose, post }) => {
   const [file, setFile] = useState<File | null>(null);
   const [existingAttachments, setExistingAttachments] = useState(post?.attachments ?? []);
   const [removedAttachmentIds, setRemovedAttachmentIds] = useState<number[]>([]);
+  
+  const [duplicateMatch, setDuplicateMatch] = useState<any>(null);
+  const [checkingDuplicate, setCheckingDuplicate] = useState(false);
+
+  useEffect(() => {
+    if (isEditMode || !form.title || form.title.trim().length < 10) {
+      setDuplicateMatch(null);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setCheckingDuplicate(true);
+      try {
+        const { data } = await api.post('/intelligence/duplicate-check', { title: form.title, body: form.description });
+        if (data.data?.found) {
+          setDuplicateMatch(data.data.match);
+        } else {
+          setDuplicateMatch(null);
+        }
+      } catch (err) {
+        setDuplicateMatch(null);
+      } finally {
+        setCheckingDuplicate(false);
+      }
+    }, 700);
+
+    return () => clearTimeout(timer);
+  }, [form.title, form.description, isEditMode]);
 
   useEffect(() => {
     if (isOpen && post) {
@@ -45,6 +75,8 @@ const CreatePostModal: React.FC<Props> = ({ isOpen, onClose, post }) => {
         type: post.type,
         section: post.section,
         isUseCase: post.isUseCase,
+        linkedEntityType: (post.linkedEntityType as any) || '',
+        linkedEntityId: post.linkedEntityId || '',
       });
       setExistingAttachments(post.attachments ?? []);
       setRemovedAttachmentIds([]);
@@ -84,6 +116,8 @@ const CreatePostModal: React.FC<Props> = ({ isOpen, onClose, post }) => {
       payload.append('type', form.type);
       payload.append('section', form.section);
       payload.append('isUseCase', String(form.isUseCase));
+      if (form.linkedEntityType) payload.append('linkedEntityType', form.linkedEntityType);
+      if (form.linkedEntityId) payload.append('linkedEntityId', form.linkedEntityId);
 
       if (file) payload.append('attachment', file);
 
@@ -137,13 +171,35 @@ const CreatePostModal: React.FC<Props> = ({ isOpen, onClose, post }) => {
           )}
 
           <div>
-            <label className="label">Thread Title *</label>
+            <label className="label flex items-center justify-between">
+              <span>Thread Title *</span>
+              {checkingDuplicate && <span className="text-xs text-brand-primary animate-pulse">Checking for duplicates...</span>}
+            </label>
             <input
               className="input text-base py-3 bg-gray-50 focus:bg-white" required
               placeholder="E.g. Invoice generation failing for patient loop..."
               value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
             />
+            {duplicateMatch && !isEditMode && (
+              <div className="mt-3 p-4 bg-orange-50 border border-orange-200 rounded-xl flex flex-col gap-2">
+                <div className="flex items-center gap-2 text-orange-800 font-bold text-sm">
+                  <Sparkles size={16} /> Possible Duplicate Found
+                </div>
+                <p className="text-sm text-orange-700">
+                  This looks very similar to an already resolved post:
+                  <a href={duplicateMatch.url} target="_blank" rel="noreferrer" className="ml-1 font-bold underline hover:text-orange-900">
+                    {duplicateMatch.postNumber || 'Post'}: {duplicateMatch.title}
+                  </a>
+                </p>
+                {duplicateMatch.resolution && (
+                  <div className="bg-white/60 p-2 rounded-lg border border-orange-100 text-xs text-gray-700">
+                    <span className="font-bold block mb-1">Resolution:</span>
+                    {duplicateMatch.resolution}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -165,6 +221,32 @@ const CreatePostModal: React.FC<Props> = ({ isOpen, onClose, post }) => {
                 ))}
               </select>
             </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="label">Link CRM Record Type (Optional)</label>
+              <select className="input bg-gray-50 focus:bg-white" value={form.linkedEntityType}
+                onChange={(e) => setForm({ ...form, linkedEntityType: e.target.value as any })}>
+                <option value="">None</option>
+                <option value="BILL">Bill</option>
+                <option value="CASE">Case</option>
+                <option value="PARTNER">Partner</option>
+              </select>
+            </div>
+            {form.linkedEntityType && (
+              <div>
+                <label className="label">
+                  Record ID {form.linkedEntityType === 'BILL' ? '(e.g. SCCS0001)' : form.linkedEntityType === 'CASE' ? '(e.g. CS0001)' : '(e.g. PTR0001)'}
+                </label>
+                <input
+                  className="input bg-gray-50 focus:bg-white"
+                  placeholder="Enter Record ID..."
+                  value={form.linkedEntityId}
+                  onChange={(e) => setForm({ ...form, linkedEntityId: e.target.value })}
+                />
+              </div>
+            )}
           </div>
 
           <div>

@@ -82,21 +82,36 @@ export const createComment = async (req: Request, res: Response) => {
 /* ---------- UPDATE COMMENT ---------- */
 export const updateComment = async (req: Request, res: Response) => {
   const id = Number(req.params.id);
-  const { content } = req.body;
+  const { content, isCanonical } = req.body;
 
-  const comment = await prisma.comment.findUnique({ where: { id } });
+  const comment = await prisma.comment.findUnique({ 
+    where: { id },
+    include: { post: true }
+  });
   
   if (!comment) {
     throw new AppError('Comment not found', StatusCodes.NOT_FOUND, 'COMMENT_NOT_FOUND');
   }
   
-  if (comment.authorId !== req.user!.id && req.user!.role !== 'ADMIN') {
+  // Checking permissions
+  const isAuthor = comment.authorId === req.user!.id;
+  const isAdmin = req.user!.role === 'ADMIN' || req.user!.role === 'FOUNDER';
+  const isPostOwner = comment.post.ownerId === req.user!.id;
+
+  if (content !== undefined && !isAuthor && !isAdmin) {
     throw new AppError('Forbidden. You cannot edit this comment.', StatusCodes.FORBIDDEN, 'FORBIDDEN');
+  }
+
+  if (isCanonical !== undefined && !isPostOwner && !isAdmin) {
+    throw new AppError('Forbidden. Only post owners can mark comments as canonical.', StatusCodes.FORBIDDEN, 'FORBIDDEN');
   }
 
   const updated = await prisma.comment.update({
     where: { id },
-    data: { content },
+    data: { 
+      ...(content !== undefined && { content }),
+      ...(isCanonical !== undefined && { isCanonical })
+    },
     include: {
       author: { select: { id: true, name: true, role: true, avatarUrl: true } },
     },

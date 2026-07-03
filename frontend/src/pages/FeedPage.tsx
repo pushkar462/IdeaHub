@@ -3,6 +3,7 @@ import { motion, Variants } from 'framer-motion';
 import { Search, Filter, FileText, Plus } from 'lucide-react';
 import api from '@/api/axios';
 import { usePostStore } from '@/stores/post.store';
+import { useAuthStore } from '@/stores/auth.store';
 import PostCard from '@/components/posts/PostCard';
 import CreatePostModal from '@/components/posts/CreatePostModal';
 import Loader from '@/components/shared/Loader';
@@ -14,14 +15,24 @@ const SECTIONS = ['BILLS', 'INVOICING', 'PATIENTS', 'CASES', 'PARTNERS', 'HOSPIT
 const STATUSES = ['OPEN', 'DISCUSSING', 'RESOLVED'];
 
 const FeedPage: React.FC = () => {
-  const { feed, loading, hasMore, loadingMore, fetchFeed, fetchMoreFeed, reactToPost, deletePost, totalPosts } = usePostStore();
+  const { user } = useAuthStore();
+  const { feed, loading, hasMore, loadingMore, fetchFeed, fetchMoreFeed, reactToPost, deletePost, totalPosts, stats } = usePostStore();
   const [search, setSearch]     = useState('');
   const [type, setType]         = useState('');
   const [section, setSection]   = useState('');
-  const [status, setStatus]     = useState('');
+  const [status, setStatus]     = useState('OPEN');
   const [ownerId, setOwnerId]   = useState('');
+  const [authorId, setAuthorId] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editingPost, setEditingPost] = useState<Post | null>(null);
+
+  const [viewMode, setViewMode] = useState<'LIST' | 'KANBAN'>(() => {
+    return (localStorage.getItem('feed_view_mode') as 'LIST' | 'KANBAN') || 'LIST';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('feed_view_mode', viewMode);
+  }, [viewMode]);
   
   const [owners, setOwners] = useState<Pick<User, 'id' | 'name'>[]>([]);
   const [ownersLoading, setOwnersLoading] = useState(true);
@@ -43,20 +54,22 @@ const FeedPage: React.FC = () => {
       search,
       type,
       section,
-      status,
+      status: viewMode === 'KANBAN' ? '' : status,
       ownerId: ownerId ? Number(ownerId) : undefined,
+      authorId: authorId ? Number(authorId) : undefined,
     });
-  }, [search, type, section, status, ownerId]);
+  }, [search, type, section, status, ownerId, authorId, viewMode]);
 
-  const hasActiveFilters = type || section || status || search || ownerId;
+  const hasActiveFilters = type || section || (status && status !== 'OPEN') || search || ownerId || authorId;
   const selectedOwner = owners.find((c) => String(c.id) === ownerId);
 
   const clearAllFilters = () => {
     setSearch('');
     setType('');
     setSection('');
-    setStatus('');
+    setStatus('OPEN');
     setOwnerId('');
+    setAuthorId('');
   };
 
   const containerVariants: Variants = {
@@ -137,6 +150,12 @@ const FeedPage: React.FC = () => {
         {hasActiveFilters && (
           <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="flex flex-wrap items-center gap-2 pt-2 border-t border-surface-border">
             <Filter size={14} className="text-gray-400 mr-1" />
+            {authorId && (
+              <span className="badge bg-brand-light text-brand-primary">
+                My Posts
+                <button onClick={() => setAuthorId('')} className="ml-1.5 text-brand-primary hover:text-gray-900">✕</button>
+              </span>
+            )}
             {ownerId && selectedOwner && (
               <span className="badge bg-brand-light text-brand-primary">
                 Owner: {selectedOwner.name}
@@ -162,14 +181,41 @@ const FeedPage: React.FC = () => {
         )}
       </div>
 
-      <div className="flex items-center justify-between px-2">
-        <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-          <FileText size={18} className="text-brand-primary" />
-          Active Feed
-        </h2>
-        <span className="text-xs font-medium text-brand-primary bg-brand-light px-2.5 py-1 rounded-full">
-          {totalPosts} {totalPosts === 1 ? 'post' : 'posts'}
-        </span>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between px-2 gap-4">
+        <div className="flex items-center gap-4">
+          <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+            <FileText size={18} className="text-brand-primary" />
+            Active Feed
+          </h2>
+          <span className="text-xs font-bold bg-gray-100 text-gray-700 px-3 py-1 rounded-full border border-gray-200">
+            {stats.totalActive} open • {stats.needReview} need your answer
+          </span>
+        </div>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setAuthorId(authorId ? '' : String(user?.id))}
+            className={`text-xs font-bold px-3 py-1.5 rounded-lg border transition-colors ${
+              authorId ? 'bg-brand-primary text-white border-brand-primary' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+            }`}
+          >
+            My Posts
+          </button>
+          
+          <div className="flex bg-gray-100 p-1 rounded-lg border border-gray-200">
+            <button
+              onClick={() => setViewMode('LIST')}
+              className={`text-xs font-bold px-3 py-1 rounded-md transition-colors ${viewMode === 'LIST' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              List
+            </button>
+            <button
+              onClick={() => setViewMode('KANBAN')}
+              className={`text-xs font-bold px-3 py-1 rounded-md transition-colors ${viewMode === 'KANBAN' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              Kanban
+            </button>
+          </div>
+        </div>
       </div>
 
       {loading ? (
@@ -194,6 +240,41 @@ const FeedPage: React.FC = () => {
               )
             }
           />
+        </motion.div>
+      ) : viewMode === 'KANBAN' ? (
+        <motion.div 
+          className="flex gap-4 overflow-x-auto pb-4 snap-x"
+          variants={containerVariants}
+          initial="hidden"
+          animate="show"
+        >
+          {['OPEN', 'DISCUSSING', 'RESOLVED'].map((colStatus) => {
+            const colPosts = feed.filter((p) => p.status === colStatus);
+            return (
+              <div key={colStatus} className="flex-none w-80 bg-gray-50/50 rounded-2xl p-4 border border-surface-border snap-start flex flex-col max-h-[70vh]">
+                <h3 className="text-sm font-bold text-gray-700 mb-4 flex justify-between items-center">
+                  {colStatus}
+                  <span className="bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full text-xs">{colPosts.length}</span>
+                </h3>
+                <div className="space-y-4 overflow-y-auto flex-1 pr-1 custom-scrollbar">
+                  {colPosts.map((post) => (
+                    <PostCard
+                      key={post.id}
+                      post={post}
+                      onReact={(id, emoji) => reactToPost(id, emoji)}
+                      onEdit={(p) => setEditingPost(p)}
+                      onDelete={(id) => deletePost(id)}
+                    />
+                  ))}
+                  {colPosts.length === 0 && (
+                    <div className="text-center py-10 text-xs text-gray-400 font-medium border-2 border-dashed border-gray-200 rounded-xl">
+                      No {colStatus.toLowerCase()} posts
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </motion.div>
       ) : (
         <motion.div 

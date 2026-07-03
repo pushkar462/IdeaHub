@@ -4,6 +4,7 @@ import { AppError } from '../utils/AppError';
 import { successResponse } from '../utils/response.util';
 import { assignmentRecommendationService } from '../services/intelligence/assignment-recommendation.service';
 import { workflowSummaryService } from '../services/intelligence/workflow-summary.service';
+import { duplicateCheckService } from '../services/intelligence/duplicate-check.service';
 import prisma from '../config/db';
 
 /* ---------- RECOMMEND ASSIGNEE ---------- */
@@ -63,4 +64,16 @@ export const triggerSummary = async (req: Request, res: Response) => {
   });
 
   return successResponse(res, 'Summary generation queued', null, {}, StatusCodes.ACCEPTED);
+};
+
+/* ---------- DUPLICATE CHECK ---------- */
+export const checkDuplicate = async (req: Request, res: Response) => {
+  const { title, body } = req.body;
+
+  if (!title || typeof title !== 'string' || title.trim().length < 3) {
+    return successResponse(res, 'No duplicates found', { found: false });
+  }
+
+  const result = await duplicateCheckService.checkForDuplicates(title, body);
+  return successResponse(res, 'Duplicate check completed', result);
 };

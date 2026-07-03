@@ -13,6 +13,7 @@ export const updateCommentSchema = z.object({
     id: z.string().regex(/^\d+$/, 'ID must be numeric'),
   }).strict(),
   body: z.object({
-    content: z.string().min(1, 'Content is required'),
+    content: z.string().min(1, 'Content is required').optional(),
+    isCanonical: z.boolean().optional(),
   }).strict()
 });

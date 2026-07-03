@@ -10,14 +10,17 @@ import AISummary from '@/components/posts/AISummary';
 import RenderMentionText from '@/components/shared/RenderMentionText';
 import AttachmentList from '@/components/posts/AttachmentList';
 import CreatePostModal from '@/components/posts/CreatePostModal';
-import { ArrowLeft, Edit2, Trash2, ThumbsUp, AlertTriangle } from 'lucide-react';
+import ResolveModal from '@/components/posts/ResolveModal';
+import { ArrowLeft, Edit2, Trash2, ThumbsUp, AlertTriangle, MoreVertical, BookOpen } from 'lucide-react';
 
 const PostDetailPage: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuthStore();
-  const { current: post, loading, fetchPost, updateStatus, deletePost, reactToPost } = usePostStore();
+  const { current: post, loading, fetchPost, updateStatus, deletePost, reactToPost, updatePost } = usePostStore();
   const [editOpen, setEditOpen] = useState(false);
+  const [resolveOpen, setResolveOpen] = useState(false);
+  const [useCaseMenuOpen, setUseCaseMenuOpen] = useState(false);
 
   useEffect(() => {
     if (id) fetchPost(Number(id));
@@ -27,9 +30,12 @@ const PostDetailPage: React.FC = () => {
   if (!post) return <div className="text-center py-20 text-gray-500 font-medium">Post not found</div>;
 
   const isAuthor = user?.id === post.authorId;
+  const isOwner = user?.id === post.ownerId;
   const isFounder = user?.role === 'FOUNDER' || user?.role === 'ADMIN';
-  const isDepartmentMember = (user as any)?.departmentId === post.departmentId && post.departmentId != null;
-  const canChangeStatus = isAuthor || isFounder || isDepartmentMember;
+  
+  const canStartDiscussing = isOwner || isFounder;
+  const canResolve = isOwner || isFounder || (post.type === 'QUESTION' && isAuthor);
+  
   const canEdit = isAuthor;
   const canDelete = isAuthor || isFounder;
   const isLocked = post.status === 'RESOLVED';
@@ -41,8 +47,20 @@ const PostDetailPage: React.FC = () => {
     }
   };
 
-  const handleStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    updateStatus(post.id, e.target.value);
+  const handleStatusChange = async (newStatus: string) => {
+    await updateStatus(post.id, newStatus);
+    await fetchPost(post.id, true);
+  };
+
+  const toggleUseCase = async () => {
+    try {
+      const payload = new FormData();
+      payload.append('isUseCase', String(!post.isUseCase));
+      await updatePost(post.id, payload);
+      await fetchPost(post.id, true);
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const totalReactions = post.reactions?.length ?? 0;
@@ -67,6 +85,21 @@ const PostDetailPage: React.FC = () => {
               </span>
             )}
 
+            {post.linkedEntityType && post.linkedEntityId && (
+              <a
+                href={
+                  post.linkedEntityType === 'BILL' ? `${import.meta.env.VITE_CRM_BILL_BASE_URL || '#'}${post.linkedEntityId}` :
+                  post.linkedEntityType === 'CASE' ? `${import.meta.env.VITE_CRM_CASE_BASE_URL || '#'}${post.linkedEntityId}` :
+                  `${import.meta.env.VITE_CRM_PARTNER_BASE_URL || '#'}${post.linkedEntityId}`
+                }
+                target="_blank"
+                rel="noreferrer"
+                className="badge bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 transition-colors flex items-center gap-1 cursor-pointer"
+              >
+                [{post.linkedEntityType}] {post.linkedEntityId} ↗
+              </a>
+            )}
+
             {post.workflowMetrics?.slaStatus === 'BREACHED' && (
               <span className="badge bg-red-100 text-red-700 border border-red-300 animate-pulse flex items-center gap-1">
                 <AlertTriangle size={12} /> SLA BREACH
@@ -78,19 +111,63 @@ const PostDetailPage: React.FC = () => {
                 <AlertTriangle size={12} /> SLA AT RISK
               </span>
             )}
+
+            {post.isUseCase && (
+              <span className="badge bg-yellow-100 text-yellow-800 border-yellow-300 flex items-center gap-1">
+                <BookOpen size={12} /> Graduated: Use Case
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-3">
-            {canChangeStatus && (
-              <select
-                className="input py-1.5 text-xs w-auto bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 font-bold"
-                value={post.status}
-                onChange={handleStatusChange}
-                disabled={isLocked && !isFounder}
+            {canStartDiscussing && post.status === 'OPEN' && (
+              <button
+                onClick={() => handleStatusChange('DISCUSSING')}
+                className="btn-primary text-xs py-1.5 px-4"
               >
-                <option value="OPEN">Open</option>
-                <option value="DISCUSSING">Discussing</option>
-                <option value="RESOLVED">Resolved</option>
-              </select>
+                Start Discussing
+              </button>
+            )}
+            
+            {canResolve && post.status === 'DISCUSSING' && (
+              <button
+                onClick={() => setResolveOpen(true)}
+                className="btn-primary text-xs py-1.5 px-4 bg-green-600 hover:bg-green-700 border-green-600"
+              >
+                Mark Resolved
+              </button>
+            )}
+
+            {isFounder && post.status === 'RESOLVED' && (
+              <button
+                onClick={() => handleStatusChange('OPEN')}
+                className="btn-ghost text-xs py-1.5 px-4 text-gray-500"
+              >
+                Reopen
+              </button>
+            )}
+
+            {(isOwner || isFounder) && (
+              <div className="relative">
+                <button 
+                  onClick={() => setUseCaseMenuOpen(!useCaseMenuOpen)}
+                  className="p-1.5 text-gray-500 hover:text-brand-primary bg-gray-50 rounded-lg transition-colors"
+                >
+                  <MoreVertical size={16} />
+                </button>
+                {useCaseMenuOpen && (
+                  <>
+                    <div className="fixed inset-0 z-10" onClick={() => setUseCaseMenuOpen(false)}></div>
+                    <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-surface-border rounded-xl shadow-lg z-20 py-1 overflow-hidden">
+                      <button
+                        onClick={() => { setUseCaseMenuOpen(false); toggleUseCase(); }}
+                        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-brand-primary transition-colors"
+                      >
+                        {post.isUseCase ? 'Remove Use Case Flag' : 'Graduate to Use Case'}
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
             )}
             {canEdit && (
               <button onClick={() => setEditOpen(true)} className="p-1.5 text-gray-500 hover:text-brand-primary bg-gray-50 rounded-lg transition-colors">
@@ -191,6 +268,13 @@ const PostDetailPage: React.FC = () => {
           fetchPost(post.id, true);
         }}
         post={post}
+      />
+
+      <ResolveModal
+        isOpen={resolveOpen}
+        onClose={() => setResolveOpen(false)}
+        postId={post.id}
+        postType={post.type}
       />
     </div>
   );

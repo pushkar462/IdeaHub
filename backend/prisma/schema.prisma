@@ -161,6 +161,7 @@ model Comment {
   parentId Int?
   parent   Comment?  @relation("Replies", fields: [parentId], references: [id])
   replies  Comment[] @relation("Replies")
+  isCanonical Boolean @default(false)
 
   reactions     Reaction[]
   mentions      Mention[]

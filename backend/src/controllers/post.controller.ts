@@ -137,6 +137,7 @@ export const getPost = async (req: Request, res: Response) => {
     where: { id },
     include: {
       author: { select: { id: true, name: true, role: true, avatarUrl: true } },
+      owner: { select: { id: true, name: true, role: true, avatarUrl: true } },
       assignee: { select: { id: true, name: true, role: true, avatarUrl: true } },
       reactions: true,
       attachments: true,

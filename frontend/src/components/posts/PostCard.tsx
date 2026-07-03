@@ -71,6 +71,12 @@ const PostCard: React.FC<Props> = ({ post, onReact, onEdit, onDelete }) => {
             </span>
           )}
 
+          {post.linkedEntityType && post.linkedEntityId && (
+            <span className="badge bg-transparent text-indigo-500 border-indigo-500">
+              [{post.linkedEntityType}] {post.linkedEntityId}
+            </span>
+          )}
+
           {post.owner && (
             <span className="badge bg-transparent text-[#77f0ec] border-[#77f0ec] flex items-center gap-1">
               {post.owner.name}

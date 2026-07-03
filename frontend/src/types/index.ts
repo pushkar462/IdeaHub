@@ -42,6 +42,8 @@ export interface Post {
   status: PostStatus;
   resolution?: string;
   isUseCase: boolean;
+  linkedEntityType?: 'BILL' | 'CASE' | 'PARTNER';
+  linkedEntityId?: string;
   createdAt: string;
   updatedAt: string;
   author: User;
@@ -72,6 +74,7 @@ export interface Comment {
   author: User;
   postId: number;
   parentId?: number;
+  isCanonical?: boolean;
   reactions: Reaction[];
   replies?: Comment[];
 }

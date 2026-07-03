@@ -10,6 +10,7 @@ import RenderMentionText from '@/components/shared/RenderMentionText';
 interface Props {
   comments: Comment[];
   postId: number;
+  postOwnerId?: number;
   onRefresh: () => void;
   isLocked?: boolean;
 }
@@ -17,10 +18,11 @@ interface Props {
 const CommentItem: React.FC<{
   comment: Comment;
   postId: number;
+  postOwnerId?: number;
   onRefresh: () => void;
   depth?: number;
   isLocked?: boolean;
-}> = ({ comment, postId, onRefresh, depth = 0, isLocked }) => {
+}> = ({ comment, postId, postOwnerId, onRefresh, depth = 0, isLocked }) => {
   const { user } = useAuthStore();
   const [showReply, setShowReply] = useState(false);
   const [replyText, setReplyText] = useState('');
@@ -51,9 +53,19 @@ const CommentItem: React.FC<{
     onRefresh();
   };
 
+  const toggleCanonical = async () => {
+    await api.patch(`/comments/${comment.id}`, { isCanonical: !comment.isCanonical });
+    onRefresh();
+  };
+
   return (
     <div className={`${depth > 0 ? 'ml-8 border-l-2 border-surface-border pl-4' : ''} mb-4`}>
-      <div className="flex gap-3">
+      {comment.isCanonical && (
+        <div className="mb-2 flex items-center gap-1.5 text-xs font-bold text-green-600 bg-green-50 w-max px-2 py-1 rounded-md border border-green-200">
+          <span className="text-green-500">⭐</span> Canonical Answer
+        </div>
+      )}
+      <div className={`flex gap-3 ${comment.isCanonical ? 'bg-green-50/30 p-3 rounded-xl border border-green-100' : ''}`}>
         <Avatar user={comment.author} size="sm" />
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-1">
@@ -102,6 +114,12 @@ const CommentItem: React.FC<{
                     </button>
                   </>
                 )}
+                {user?.id === postOwnerId && (
+                  <button onClick={toggleCanonical}
+                    className={`text-xs transition-colors ${comment.isCanonical ? 'text-green-600 font-bold hover:text-green-700' : 'text-gray-400 hover:text-green-600'}`}>
+                    {comment.isCanonical ? 'Unmark Canonical' : 'Mark Canonical'}
+                  </button>
+                )}
               </>
             )}
           </div>
@@ -138,13 +156,13 @@ const CommentItem: React.FC<{
 
       {/* Nested replies */}
       {comment.replies?.map((reply) => (
-        <CommentItem key={reply.id} comment={reply} postId={postId} onRefresh={onRefresh} depth={depth + 1} isLocked={isLocked} />
+        <CommentItem key={reply.id} comment={reply} postId={postId} postOwnerId={postOwnerId} onRefresh={onRefresh} depth={depth + 1} isLocked={isLocked} />
       ))}
     </div>
   );
 };
 
-const CommentThread: React.FC<Props> = ({ comments, postId, onRefresh, isLocked }) => {
+const CommentThread: React.FC<Props> = ({ comments, postId, postOwnerId, onRefresh, isLocked }) => {
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -195,8 +213,12 @@ const CommentThread: React.FC<Props> = ({ comments, postId, onRefresh, isLocked 
       {comments.length === 0 ? (
         <p className="text-sm text-gray-400 text-center py-4">No comments yet. Be the first!</p>
       ) : (
-        comments.map((c) => (
-          <CommentItem key={c.id} comment={c} postId={postId} onRefresh={onRefresh} isLocked={isLocked} />
+        [...comments].sort((a, b) => {
+          if (a.isCanonical && !b.isCanonical) return -1;
+          if (!a.isCanonical && b.isCanonical) return 1;
+          return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+        }).map((c) => (
+          <CommentItem key={c.id} comment={c} postId={postId} postOwnerId={postOwnerId} onRefresh={onRefresh} isLocked={isLocked} />
         ))
       )}
     </div>
