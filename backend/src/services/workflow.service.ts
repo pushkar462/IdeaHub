@@ -53,9 +53,7 @@ export class WorkflowService {
       if (!post.acknowledgedAt) {
         dataToUpdate.acknowledgedAt = new Date();
       }
-      if (!post.ownerId) {
-        dataToUpdate.ownerId = actorId;
-      }
+      // Ownership claim is handled atomically below (see "atomic owner claim").
       auditActions.push({ actionType: 'POST_ACKNOWLEDGED', metadata: { from: Status.OPEN, to: Status.DISCUSSING } });
 
     } else if (currentStatus === Status.DISCUSSING && newStatus === Status.RESOLVED) {
@@ -89,9 +87,7 @@ export class WorkflowService {
       if (!post.acknowledgedAt) {
         dataToUpdate.acknowledgedAt = new Date();
       }
-      if (!post.ownerId) {
-        dataToUpdate.ownerId = actorId;
-      }
+      // Ownership claim handled atomically below.
       dataToUpdate.resolution = payload.resolution;
       dataToUpdate.resolutionReason = payload.resolutionReason || null;
 
@@ -128,6 +124,21 @@ export class WorkflowService {
          // Ah, the plan says: "QUESTION: author (knows when their question is answered) or owner."
          // But above for DISCUSSING->RESOLVED, I enforced `canActAsOwner`. Let me fix that.
        }
+    }
+
+    // Atomic owner claim: if this transition should assign an owner and the post
+    // is still unowned, claim it in a single guarded write. If another actor beat
+    // us to it, updateMany.count is 0 and we simply proceed with the existing owner
+    // — no lost-update, no need for serializable isolation.
+    const shouldClaimOwner =
+      currentStatus === Status.OPEN &&
+      (newStatus === Status.DISCUSSING || newStatus === Status.RESOLVED) &&
+      !post.ownerId;
+    if (shouldClaimOwner) {
+      await prisma.post.updateMany({
+        where: { id: postId, ownerId: null },
+        data: { ownerId: actorId },
+      });
     }
 
     // 4. Update DB transactionally

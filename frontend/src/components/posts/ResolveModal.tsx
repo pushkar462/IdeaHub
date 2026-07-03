@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import { PostType } from '@/types';
 import api from '@/api/axios';
@@ -23,6 +23,13 @@ const ResolveModal: React.FC<Props> = ({ isOpen, onClose, postId, postType }) =>
   const [reason, setReason] = useState('');
   const [loading, setLoading] = useState(false);
   const { fetchPost, fetchFeed } = usePostStore();
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -59,7 +66,10 @@ const ResolveModal: React.FC<Props> = ({ isOpen, onClose, postId, postType }) =>
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-gray-900/40 backdrop-blur-sm">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-gray-900/40 backdrop-blur-sm"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
       <div className="bg-white border border-surface-border rounded-2xl shadow-2xl w-full max-w-md animate-in flex flex-col">
         <div className="flex items-center justify-between p-5 border-b border-surface-border">
           <h2 className="text-lg font-bold text-gray-900">Mark as Resolved</h2>

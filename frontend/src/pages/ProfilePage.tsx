@@ -275,7 +275,7 @@ const ContribPanel: React.FC<{
       <ul className="space-y-2 text-sm">
         {items.slice(0, 10).map((p) => (
           <li key={p.id} className="border-b border-surface-border pb-2 last:border-b-0">
-            <a href={`/posts/${p.id}`} className="text-gray-800 hover:text-brand-primary transition-colors line-clamp-1 font-medium">
+            <a href={`/post/${p.id}`} className="text-gray-800 hover:text-brand-primary transition-colors line-clamp-1 font-medium">
               {p.title}
             </a>
             <div className="text-[10px] text-gray-400 mt-0.5 flex items-center gap-1.5 flex-wrap">

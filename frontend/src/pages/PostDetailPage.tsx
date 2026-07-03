@@ -90,8 +90,9 @@ const PostDetailPage: React.FC = () => {
       payload.append('isUseCase', String(!post.isUseCase));
       await updatePost(post.id, payload);
       await fetchPost(post.id, true);
-    } catch (e) {
-      console.error(e);
+      toast.success(post.isUseCase ? 'Use Case flag removed' : 'Post graduated to Use Case');
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || 'Failed to update Use Case flag');
     }
   };
 

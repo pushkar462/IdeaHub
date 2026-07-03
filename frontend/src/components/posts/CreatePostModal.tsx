@@ -52,8 +52,9 @@ const CreatePostModal: React.FC<Props> = ({ isOpen, onClose, post }) => {
       setCheckingDuplicate(true);
       try {
         const { data } = await api.post('/intelligence/duplicate-check', { title: form.title, body: form.description });
-        if (data.data?.found) {
-          setDuplicateMatch(data.data.match);
+        // axios interceptor already unwrapped { success, data } → data IS the payload
+        if (data?.found) {
+          setDuplicateMatch(data.match);
         } else {
           setDuplicateMatch(null);
         }
@@ -149,10 +150,20 @@ const CreatePostModal: React.FC<Props> = ({ isOpen, onClose, post }) => {
     (a) => !removedAttachmentIds.includes(a.id)
   );
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-gray-900/40 backdrop-blur-sm">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-gray-900/40 backdrop-blur-sm"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
       <div className="bg-white border border-surface-border rounded-2xl shadow-2xl w-full max-w-xl animate-in max-h-[90vh] flex flex-col">
         <div className="flex items-center justify-between p-6 border-b border-surface-border shrink-0">
           <h2 className="text-xl font-bold text-gray-900 tracking-wide flex items-center gap-2">

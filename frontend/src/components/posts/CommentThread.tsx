@@ -207,7 +207,7 @@ const CommentThread: React.FC<Props> = ({ comments, postId, postOwnerId, onRefre
                 </span>
               )}
               {draftSeed?.sources?.map((s) => (
-                <a key={s.id} href={`/posts/${s.id}`} className="badge bg-white border border-purple-200 text-purple-700 hover:bg-purple-100 text-[10px] font-mono">
+                <a key={s.id} href={`/post/${s.id}`} className="badge bg-white border border-purple-200 text-purple-700 hover:bg-purple-100 text-[10px] font-mono">
                   {s.postNumber ?? `#${s.id}`}
                 </a>
               ))}

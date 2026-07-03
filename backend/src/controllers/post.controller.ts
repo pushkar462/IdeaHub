@@ -74,8 +74,7 @@ export const createPost = async (req: Request, res: Response) => {
       include: { author: { select: { id: true, name: true, role: true, avatarUrl: true } }, attachments: true },
     });
   } catch (error: any) {
-    require('fs').writeFileSync('/tmp/prisma_error.log', String(error) + '\n' + JSON.stringify(error, null, 2));
-    console.error("PRISMA ERROR DETAILS:", error);
+    console.error('[createPost] Prisma create failed:', error);
     throw error;
   }
 

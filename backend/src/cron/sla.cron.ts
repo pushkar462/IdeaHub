@@ -19,34 +19,38 @@ export const startSlaCron = () => {
       
       const twoDaysAgo = new Date(Date.now() - 172800 * 1000);
       
+      // Only pick up NEW breaches (HEALTHY → BREACHED). Anything already BREACHED
+      // has already notified the owner; the cron must not re-notify on every hourly tick.
       const breachedMetrics = await prisma.workflowMetrics.findMany({
         where: {
           slaStatus: SLAStatus.HEALTHY,
           post: {
             status: Status.OPEN,
+            acknowledgedAt: null,
           },
           currentStatusStartedAt: {
-            lt: twoDaysAgo // Simple heuristic: if it's been in OPEN since > 2 days ago without transition
+            lt: twoDaysAgo
           }
         },
         include: { post: true }
       });
 
       if (breachedMetrics.length > 0) {
-        console.log(`[SLA Engine] Found ${breachedMetrics.length} breached posts.`);
-        
+        console.log(`[SLA Engine] Found ${breachedMetrics.length} newly breached posts.`);
+
         for (const metric of breachedMetrics) {
-          // Update SLA Status
-          await prisma.workflowMetrics.update({
-            where: { id: metric.id },
+          // Atomically flip HEALTHY → BREACHED. updateMany with the guard on slaStatus
+          // means a concurrent cron/handler cannot double-fire the notification.
+          const flipped = await prisma.workflowMetrics.updateMany({
+            where: { id: metric.id, slaStatus: SLAStatus.HEALTHY },
             data: { slaStatus: SLAStatus.BREACHED }
           });
+          if (flipped.count === 0) continue; // someone else flipped it first
 
-          // Notify Owner
           if (metric.post.ownerId) {
             await notificationService.createNotification({
               userId: metric.post.ownerId,
-              type: 'MENTION', // Could be 'SLA_BREACH' if enum supported it
+              type: 'MENTION',
               actorId: metric.post.authorId,
               postId: metric.post.id,
             }, undefined).catch(e => console.warn('Failed to send SLA breach notification:', e));

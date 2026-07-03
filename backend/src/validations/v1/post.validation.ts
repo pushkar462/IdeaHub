@@ -7,8 +7,8 @@ export const createPostSchema = z.object({
     type: z.enum(['QUESTION', 'PROBLEM', 'IDEA']),
     section: z.enum(['BILLS', 'INVOICING', 'PATIENTS', 'CASES', 'PARTNERS', 'HOSPITALS', 'DOCTORS', 'WHATSAPP', 'PLATFORM', 'GENERAL']),
     isUseCase: z.preprocess((val) => val === 'true' || val === true, z.boolean().optional()),
-    linkedEntityType: z.string().optional(),
-    linkedEntityId: z.string().optional(),
+    linkedEntityType: z.enum(['BILL', 'CASE', 'PARTNER']).optional(),
+    linkedEntityId: z.string().max(64, 'Reference ID too long').optional(),
     departmentId: z.preprocess((val) => (val ? Number(val) : undefined), z.number().int().positive().optional().nullable()),
   }).strict()
 });
@@ -20,7 +20,7 @@ export const updatePostStatusSchema = z.object({
   body: z.object({
     status: z.enum(['OPEN', 'DISCUSSING', 'RESOLVED']).optional(),
     assigneeId: z.number().int().positive().optional().nullable(),
-    resolution: z.enum(['ANSWERED', 'FIXED', 'PARKED', 'DECLINED']).optional(),
+    resolution: z.enum(['ANSWERED', 'FIXED', 'APPROVED', 'PARKED', 'DECLINED', 'DUPLICATE', 'RULE_DECIDED']).optional(),
     resolutionReason: z.string().optional(),
   }).strict()
 });
@@ -47,8 +47,8 @@ export const updatePostSchema = z.object({
       if (val === undefined || val === null) return undefined;
       return val === 'true' || val === true;
     }, z.boolean().optional()),
-    linkedEntityType: z.string().optional(),
-    linkedEntityId: z.string().optional(),
+    linkedEntityType: z.enum(['BILL', 'CASE', 'PARTNER']).optional(),
+    linkedEntityId: z.string().max(64, 'Reference ID too long').optional(),
     departmentId: z.preprocess((val) => (val === '' || val === null || val === undefined ? undefined : Number(val)), z.number().int().positive().optional().nullable()),
     removeAttachmentId: z.preprocess((val) => {
       if (!val) return undefined;
