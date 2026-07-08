@@ -18,6 +18,7 @@ export interface DuplicateCheckResult {
     postNumber: string | null;
     title: string;
     resolution: string | null;
+    canonicalAnswerExcerpt: string | null;
     url: string;
     id: number;
   };
@@ -25,19 +26,26 @@ export interface DuplicateCheckResult {
 
 export class DuplicateCheckService {
   public async checkForDuplicates(title: string, body?: string): Promise<DuplicateCheckResult> {
-    // 1. Initial rough search using Postgres Full Text Search (similar to FeedSearch)
-    const formattedSearch = title.trim().split(/\s+/).join(' | ');
-    
-    // We only care about RESOLVED posts for duplicate checking (as they have answers)
-    const candidates = await prisma.post.findMany({
-      where: {
-        status: 'RESOLVED',
-        OR: [
-          { title: { search: formattedSearch } },
-          { description: { search: formattedSearch } }
-        ]
-      },
-      take: 5,
+    // 1. Rank RESOLVED posts against the incoming title via the GIN-indexed
+    //    tsvector column (migration 20260709120000_search_vector_gin).
+    const query = title.trim();
+    if (!query) return { found: false };
+
+    const idRows = await prisma.$queryRaw<Array<{ id: number }>>`
+      SELECT id
+      FROM "Post"
+      WHERE status = 'RESOLVED'
+        AND "searchVector" @@ plainto_tsquery('english', ${query})
+      ORDER BY ts_rank("searchVector", plainto_tsquery('english', ${query})) DESC
+      LIMIT 5
+    `;
+
+    if (idRows.length === 0) {
+      return { found: false };
+    }
+
+    const candidatesRaw = await prisma.post.findMany({
+      where: { id: { in: idRows.map((r) => r.id) } },
       select: {
         id: true,
         title: true,
@@ -51,6 +59,9 @@ export class DuplicateCheckService {
         }
       }
     });
+    // Preserve rank order returned by tsvector.
+    const order = new Map(idRows.map((r, i) => [r.id, i]));
+    const candidates = candidatesRaw.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
 
     if (candidates.length === 0) {
       return { found: false };
@@ -107,6 +118,7 @@ Strictly return JSON only in this format:
               postNumber: match.postNumber,
               title: match.title,
               resolution: match.resolution,
+              canonicalAnswerExcerpt: excerptCanonical(match.comments),
               url: `/post/${match.id}`
             }
           };
@@ -126,6 +138,7 @@ Strictly return JSON only in this format:
             postNumber: exactMatch.postNumber,
             title: exactMatch.title,
             resolution: exactMatch.resolution,
+            canonicalAnswerExcerpt: excerptCanonical(exactMatch.comments),
             url: `/post/${exactMatch.id}`
           }
         };
@@ -133,6 +146,13 @@ Strictly return JSON only in this format:
       return { found: false };
     }
   }
+}
+
+function excerptCanonical(comments: Array<{ content: string }> | undefined): string | null {
+  const c = comments?.[0]?.content;
+  if (!c) return null;
+  const trimmed = c.trim().replace(/\s+/g, ' ');
+  return trimmed.length > 240 ? trimmed.slice(0, 240) + '…' : trimmed;
 }
 
 export const duplicateCheckService = new DuplicateCheckService();

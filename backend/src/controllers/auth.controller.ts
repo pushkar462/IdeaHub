@@ -17,14 +17,6 @@ export const register = async (req: Request, res: Response) => {
     throw new AppError('Email already registered', StatusCodes.CONFLICT, 'EMAIL_EXISTS');
   }
 
-  // Limit to one account per role for founders/admins
-  if (role) {
-    const existingRole = await prisma.user.findFirst({ where: { role } });
-    if (existingRole) {
-      throw new AppError(`A user with the ${role} role already exists.`, StatusCodes.CONFLICT, 'ROLE_EXISTS');
-    }
-  }
-
   const passwordHash = await bcrypt.hash(password, 10);
   const user = await prisma.user.create({
     data: { email, passwordHash, name, role, bio, avatarUrl },
@@ -207,14 +199,6 @@ export const updateUserRole = async (req: Request, res: Response) => {
     const founderCount = await prisma.user.count({ where: { role: 'FOUNDER' } });
     if (founderCount <= 1) {
       throw new AppError('Cannot change role of the only founder account.', StatusCodes.BAD_REQUEST, 'LAST_FOUNDER');
-    }
-  }
-
-  // Enforce one account per role for ADMIN and FOUNDER
-  if (role === 'ADMIN' || role === 'FOUNDER') {
-    const existingRole = await prisma.user.findFirst({ where: { role, id: { not: id } } });
-    if (existingRole) {
-      throw new AppError(`A user with the ${role} role already exists.`, StatusCodes.CONFLICT, 'ROLE_EXISTS');
     }
   }
 

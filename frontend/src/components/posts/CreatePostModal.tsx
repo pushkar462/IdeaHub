@@ -7,7 +7,8 @@ import { Post } from '@/types';
 import { validateFile, parseUploadError } from '@/lib/uploads';
 import AttachmentList from './AttachmentList';
 import toast from 'react-hot-toast';
-import { X, Paperclip, Sparkles, Edit2, Trash2 } from 'lucide-react';
+import { X, Paperclip, Sparkles, Edit2, Trash2, HelpCircle, AlertTriangle, Lightbulb, ExternalLink } from 'lucide-react';
+import { LINKED_ENTITY_PATTERNS, isLinkedEntityFormatValid, linkedEntityHint, LinkedEntityType } from '@/lib/linkedEntity';
 
 interface Props {
   isOpen: boolean;
@@ -15,7 +16,12 @@ interface Props {
   post?: Post | null;
 }
 
-const TYPES = ['QUESTION', 'PROBLEM', 'IDEA'];
+// Handbook B3 · three types, three glyphs. "Done" definition shown as sub-copy.
+const TYPE_OPTIONS: Array<{ value: 'QUESTION' | 'PROBLEM' | 'IDEA'; label: string; icon: any; done: string }> = [
+  { value: 'QUESTION', label: 'Question', icon: HelpCircle,    done: 'answered'                    },
+  { value: 'PROBLEM',  label: 'Problem',  icon: AlertTriangle, done: 'fixed / handed to a build issue' },
+  { value: 'IDEA',     label: 'Idea',     icon: Lightbulb,     done: 'approved · parked · declined' },
+];
 const SECTIONS = ['BILLS', 'INVOICING', 'PATIENTS', 'CASES', 'PARTNERS', 'HOSPITALS', 'DOCTORS', 'WHATSAPP', 'PLATFORM', 'GENERAL'];
 
 const emptyForm = {
@@ -166,9 +172,14 @@ const CreatePostModal: React.FC<Props> = ({ isOpen, onClose, post }) => {
     >
       <div className="bg-white border border-surface-border rounded-2xl shadow-2xl w-full max-w-xl animate-in max-h-[90vh] flex flex-col">
         <div className="flex items-center justify-between p-6 border-b border-surface-border shrink-0">
-          <h2 className="text-xl font-bold text-gray-900 tracking-wide flex items-center gap-2">
-            {isEditMode ? <><Edit2 size={20} className="text-brand-primary" /> Edit Post</> : <><Sparkles size={20} className="text-brand-primary" /> New Thread</>}
-          </h2>
+          <div>
+            <h2 className="text-xl font-bold text-gray-900 tracking-wide flex items-center gap-2">
+              {isEditMode ? <><Edit2 size={20} className="text-brand-primary" /> Edit post</> : <><Sparkles size={20} className="text-brand-primary" /> New post</>}
+            </h2>
+            {!isEditMode && (
+              <p className="text-xs text-gray-500 mt-1">A half-formed thought beats one kept in your head. We respond to everything.</p>
+            )}
+          </div>
           <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors">
             <X size={20} />
           </button>
@@ -183,46 +194,75 @@ const CreatePostModal: React.FC<Props> = ({ isOpen, onClose, post }) => {
 
           <div>
             <label className="label flex items-center justify-between">
-              <span>Thread Title *</span>
-              {checkingDuplicate && <span className="text-xs text-brand-primary animate-pulse">Checking for duplicates...</span>}
+              <span>Title — state the point, don't tease it *</span>
+              {checkingDuplicate && <span className="text-xs text-brand-primary animate-pulse">Searching Loop…</span>}
             </label>
             <input
               className="input text-base py-3 bg-gray-50 focus:bg-white" required
-              placeholder="E.g. Invoice generation failing for patient loop..."
+              placeholder="Why is bill SCCS0000000 marked not_eligible?"
               value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
             />
             {duplicateMatch && !isEditMode && (
-              <div className="mt-3 p-4 bg-orange-50 border border-orange-200 rounded-xl flex flex-col gap-2">
-                <div className="flex items-center gap-2 text-orange-800 font-bold text-sm">
-                  <Sparkles size={16} /> Possible Duplicate Found
+              <div className="mt-3 p-4 bg-brand-light/60 border border-brand-primary/30 rounded-xl flex flex-col gap-2">
+                <div className="flex items-center gap-2 text-brand-primary font-bold text-sm">
+                  <Sparkles size={16} /> This may already be answered.
                 </div>
-                <p className="text-sm text-orange-700">
-                  This looks very similar to an already resolved post:
-                  <a href={duplicateMatch.url} target="_blank" rel="noreferrer" className="ml-1 font-bold underline hover:text-orange-900">
-                    {duplicateMatch.postNumber || 'Post'}: {duplicateMatch.title}
+                <p className="text-sm text-gray-700">
+                  <span className="font-mono font-semibold text-brand-primary">
+                    {duplicateMatch.postNumber || 'Post'}
+                  </span>
+                  {' — '}
+                  <span className="italic">"{duplicateMatch.title}"</span>
+                  {'. '}
+                  <a
+                    href={duplicateMatch.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-semibold underline hover:text-brand-primary inline-flex items-center gap-1"
+                  >
+                    Read it
+                    <ExternalLink size={12} />
                   </a>
+                  {' '}before posting, or post anyway if your case is different.
                 </p>
-                {duplicateMatch.resolution && (
-                  <div className="bg-white/60 p-2 rounded-lg border border-orange-100 text-xs text-gray-700">
-                    <span className="font-bold block mb-1">Resolution:</span>
-                    {duplicateMatch.resolution}
+                {duplicateMatch.canonicalAnswerExcerpt && (
+                  <div className="bg-white/70 p-2 rounded-lg border border-brand-primary/20 text-xs text-gray-700">
+                    <span className="font-bold block mb-1 text-brand-primary">Canonical answer:</span>
+                    {duplicateMatch.canonicalAnswerExcerpt}
                   </div>
                 )}
               </div>
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="label">Type</label>
-              <select className="input bg-gray-50 focus:bg-white" value={form.type}
-                onChange={(e) => setForm({ ...form, type: e.target.value })}>
-                {TYPES.map((c) => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-              </select>
+          <div>
+            <label className="label">Type — tells the owner what "done" looks like</label>
+            <div className="grid grid-cols-3 gap-2">
+              {TYPE_OPTIONS.map(({ value, label, icon: Icon, done }) => {
+                const active = form.type === value;
+                return (
+                  <button
+                    type="button"
+                    key={value}
+                    onClick={() => setForm({ ...form, type: value })}
+                    className={`flex flex-col items-start gap-1 rounded-xl border px-3 py-2 text-left transition-colors ${
+                      active
+                        ? 'border-brand-primary bg-brand-light/60 text-brand-primary'
+                        : 'border-surface-border bg-gray-50 text-gray-700 hover:bg-gray-100'
+                    }`}
+                  >
+                    <span className="flex items-center gap-2 text-sm font-semibold">
+                      <Icon size={16} /> {label}
+                    </span>
+                    <span className="text-[11px] text-gray-500 leading-tight">Done = {done}</span>
+                  </button>
+                );
+              })}
             </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="label">Section</label>
               <select className="input bg-gray-50 focus:bg-white" value={form.section}
@@ -232,11 +272,8 @@ const CreatePostModal: React.FC<Props> = ({ isOpen, onClose, post }) => {
                 ))}
               </select>
             </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="label">Link CRM Record Type (Optional)</label>
+              <label className="label">Link a CRM record (optional)</label>
               <select className="input bg-gray-50 focus:bg-white" value={form.linkedEntityType}
                 onChange={(e) => setForm({ ...form, linkedEntityType: e.target.value as any })}>
                 <option value="">None</option>
@@ -245,20 +282,26 @@ const CreatePostModal: React.FC<Props> = ({ isOpen, onClose, post }) => {
                 <option value="PARTNER">Partner</option>
               </select>
             </div>
-            {form.linkedEntityType && (
-              <div>
-                <label className="label">
-                  Record ID {form.linkedEntityType === 'BILL' ? '(e.g. SCCS0001)' : form.linkedEntityType === 'CASE' ? '(e.g. CS0001)' : '(e.g. PTR0001)'}
-                </label>
-                <input
-                  className="input bg-gray-50 focus:bg-white"
-                  placeholder="Enter Record ID..."
-                  value={form.linkedEntityId}
-                  onChange={(e) => setForm({ ...form, linkedEntityId: e.target.value })}
-                />
-              </div>
-            )}
           </div>
+
+          {form.linkedEntityType && (
+            <div>
+              <label className="label">
+                Record ID <span className="text-gray-400 font-normal">{linkedEntityHint(form.linkedEntityType as LinkedEntityType) ?? ''}</span>
+              </label>
+              <input
+                className="input bg-gray-50 focus:bg-white"
+                placeholder={LINKED_ENTITY_PATTERNS[form.linkedEntityType as LinkedEntityType]?.example || 'Enter record ID…'}
+                value={form.linkedEntityId}
+                onChange={(e) => setForm({ ...form, linkedEntityId: e.target.value })}
+              />
+              {form.linkedEntityId && !isLinkedEntityFormatValid(form.linkedEntityType as LinkedEntityType, form.linkedEntityId) && (
+                <p className="mt-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                  This doesn't look like a standard {form.linkedEntityType.toLowerCase()} ID (expected {linkedEntityHint(form.linkedEntityType as LinkedEntityType)}). You can still post — the ref will be flagged, not blocked.
+                </p>
+              )}
+            </div>
+          )}
 
           <div>
             <label className="label">Description *</label>
@@ -351,7 +394,7 @@ const CreatePostModal: React.FC<Props> = ({ isOpen, onClose, post }) => {
           <div className="flex justify-end gap-3 pt-4 border-t border-surface-border">
             <button type="button" onClick={onClose} className="btn-ghost px-6">Cancel</button>
             <button type="submit" disabled={loading} className="btn-primary px-8">
-              {loading ? (isEditMode ? 'Saving…' : 'Posting…') : (isEditMode ? 'Save Changes' : 'Create Post')}
+              {loading ? (isEditMode ? 'Saving…' : 'Posting…') : (isEditMode ? 'Save Changes' : 'Post to Loop')}
             </button>
           </div>
         </form>

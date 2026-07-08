@@ -10,6 +10,7 @@ interface PostFilters {
   section?: string;
   ownerId?: number;
   authorId?: number;
+  needResponse?: boolean;
 }
 
 interface PostStats {

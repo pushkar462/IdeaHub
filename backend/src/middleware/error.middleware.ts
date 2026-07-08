@@ -50,7 +50,20 @@ export const errorHandler = (
     });
   }
 
-  // 2. Prisma Database Errors
+  // 2. Postgres trigger exceptions raised by the Loop state-machine guard
+  //    (migration 20260708120000_state_machine_triggers). Surface the human
+  //    message as a clean 400.
+  if (err && typeof err.message === 'string' && err.message.includes('LOOP_TRANSITION:')) {
+    const raw = err.message.split('LOOP_TRANSITION:')[1] ?? '';
+    const message = raw.split(/[\n"]/)[0].trim().replace(/\.$/, '') || 'Invalid workflow transition';
+    return res.status(StatusCodes.BAD_REQUEST).json({
+      success: false,
+      message,
+      code: 'INVALID_WORKFLOW_TRANSITION',
+    });
+  }
+
+  // 3. Prisma Database Errors
   if (err instanceof Prisma.PrismaClientKnownRequestError) {
     error = handlePrismaError(err);
   } else if (err instanceof Prisma.PrismaClientValidationError) {

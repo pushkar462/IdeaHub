@@ -27,6 +27,9 @@ export const getFeedSchema = z.object({
     search: z.string().optional(), // Left in for now, ILIKE search
     ownerId: z.union([z.string(), z.number()]).optional().transform(val => val ? Number(val) : undefined),
     authorId: z.union([z.string(), z.number()]).optional().transform(val => val ? Number(val) : undefined),
+    // Handbook D1: "Open / needs response" — restrict to OPEN posts that have not
+    // been acknowledged by an owner yet. Client sends `needResponse=true`.
+    needResponse: z.union([z.string(), z.boolean()]).optional().transform(val => val === 'true' || val === true),
   }).strict()
 });
 

@@ -3,6 +3,22 @@ import { AppError } from '../utils/AppError';
 import { FeedCardDTO, CommentDTO, mapToFeedCardDTO, mapToCommentDTO } from '../dtos/feed.dto';
 import { CursorObj, buildPaginatedResult, encodeCursor, decodeCursor } from '../utils/pagination.util';
 
+// Handbook C4 / Increment I3: search via the generated tsvector + GIN index.
+// Returns a rank-ordered list of matching Post ids (capped) so the caller can
+// combine with other filters via `id: { in: ... }`.
+async function searchPostIds(term: string, limit = 200): Promise<number[]> {
+  const query = term.trim();
+  if (!query) return [];
+  const rows = await prisma.$queryRaw<Array<{ id: number }>>`
+    SELECT id
+    FROM "Post"
+    WHERE "searchVector" @@ plainto_tsquery('english', ${query})
+    ORDER BY ts_rank("searchVector", plainto_tsquery('english', ${query})) DESC
+    LIMIT ${limit}
+  `;
+  return rows.map((r) => r.id);
+}
+
 export type PaginatedFeedResult = {
   items: FeedCardDTO[];
   nextCursor?: string | null;
@@ -30,8 +46,9 @@ export class FeedService {
     authorId?: number;
     departmentId?: number;
     search?: string;
+    needResponse?: boolean;
   }): Promise<PaginatedFeedResult> {
-    const { cursor: nextCursor, limit = 20, type, section, status, ownerId, authorId, departmentId, search } = params;
+    const { cursor: nextCursor, limit = 20, type, section, status, ownerId, authorId, departmentId, search, needResponse } = params;
 
     const cursorObj = nextCursor ? decodeCursor(nextCursor) : undefined;
     if (nextCursor && !cursorObj) throw new AppError('Invalid nextCursor format', 400);
@@ -48,12 +65,17 @@ export class FeedService {
     if (ownerId) where.ownerId = ownerId;
     if (authorId) where.authorId = authorId;
     if (departmentId) where.departmentId = departmentId;
-    if (search) {
-      const formattedSearch = search.trim().split(/\s+/).join(' | ');
-      where.OR = [
-        { title: { search: formattedSearch } },
-        { description: { search: formattedSearch } },
-      ];
+    if (needResponse) {
+      // "Open / needs response" — OPEN + never acknowledged by an owner
+      where.status = 'OPEN';
+      where.acknowledgedAt = null;
+    }
+    if (search && search.trim()) {
+      const ids = await searchPostIds(search);
+      if (ids.length === 0) {
+        return { items: [], nextCursor: null, hasMore: false, total: 0 };
+      }
+      where.id = { in: ids };
     }
 
     const maxLimit = Math.min(limit, 50);

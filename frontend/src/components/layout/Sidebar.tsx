@@ -16,7 +16,7 @@ import {
 
 const NAV = [
   { to: '/dashboard',     icon: Home,       label: 'Dashboard' },
-  { to: '/feed',          icon: LayoutList, label: 'Feed' },
+  { to: '/feed',          icon: LayoutList, label: 'Board' },
   { to: '/archive',       icon: Archive,    label: 'Archive' },
   { to: '/notifications', icon: Bell,       label: 'Notifications' },
   { to: '/profile',       icon: UserIcon,   label: 'Profile' },

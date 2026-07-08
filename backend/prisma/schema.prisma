@@ -103,7 +103,7 @@ model Post {
   id          Int            @id @default(autoincrement())
   title       String
   description String
-  postNumber       String       @unique
+  postNumber       String       @unique @default("")
   type             Type
   status           Status       @default(OPEN)
   section          Section
@@ -115,6 +115,9 @@ model Post {
   acknowledgedAt   DateTime?
   linkedEntityType String?
   linkedEntityId   String?
+  // Handbook C4: generated tsvector column + GIN index for search-first.
+  // Managed by migration 20260709120000_search_vector_gin — accessed only via raw SQL.
+  searchVector    Unsupported("tsvector")?
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
 

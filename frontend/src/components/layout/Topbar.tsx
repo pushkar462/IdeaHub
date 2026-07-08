@@ -5,7 +5,7 @@ import { Menu, Plus } from 'lucide-react';
 
 const PAGE_TITLES: Record<string, string> = {
   '/dashboard':     'Dashboard',
-  '/feed':          'Product Feed',
+  '/feed':          'Loop',
   '/archive':       'Memory Archive',
   '/notifications': 'Notifications',
   '/profile':       'Profile',

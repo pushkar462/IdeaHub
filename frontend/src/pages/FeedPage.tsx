@@ -12,7 +12,16 @@ import { Post, User } from '@/types';
 
 const TYPES = ['QUESTION', 'PROBLEM', 'IDEA'];
 const SECTIONS = ['BILLS', 'INVOICING', 'PATIENTS', 'CASES', 'PARTNERS', 'HOSPITALS', 'DOCTORS', 'WHATSAPP', 'PLATFORM', 'GENERAL'];
-const STATUSES = ['OPEN', 'DISCUSSING', 'RESOLVED'];
+
+// Handbook D1: default filter = "Open / needs response" — OPEN + un-acknowledged.
+// The other options are plain status filters; ALL toggles off the filter entirely.
+const STATUS_FILTERS: Array<{ value: string; label: string }> = [
+  { value: 'NEEDS_RESPONSE', label: 'Open / needs response' },
+  { value: 'OPEN',           label: 'Open'                  },
+  { value: 'DISCUSSING',     label: 'Discussing'            },
+  { value: 'RESOLVED',       label: 'Resolved'              },
+  { value: 'ALL',            label: 'All statuses'          },
+];
 
 const FeedPage: React.FC = () => {
   const { user } = useAuthStore();
@@ -20,7 +29,7 @@ const FeedPage: React.FC = () => {
   const [search, setSearch]     = useState('');
   const [type, setType]         = useState('');
   const [section, setSection]   = useState('');
-  const [status, setStatus]     = useState('OPEN');
+  const [status, setStatus]     = useState('NEEDS_RESPONSE');
   const [ownerId, setOwnerId]   = useState('');
   const [authorId, setAuthorId] = useState('');
   const [showModal, setShowModal] = useState(false);
@@ -50,24 +59,33 @@ const FeedPage: React.FC = () => {
 
   // Fetch feed on filter changes
   useEffect(() => {
+    // Handbook D1: "Open / needs response" → status=OPEN + needResponse
+    const isNeedsResponse = status === 'NEEDS_RESPONSE';
+    const effectiveStatus =
+      viewMode === 'KANBAN' ? '' :
+      status === 'ALL' ? 'ALL' :
+      isNeedsResponse ? 'OPEN' : status;
+
     fetchFeed({
       search,
       type,
       section,
-      status: viewMode === 'KANBAN' ? '' : status,
+      status: effectiveStatus,
+      needResponse: viewMode === 'KANBAN' ? undefined : (isNeedsResponse || undefined),
       ownerId: ownerId ? Number(ownerId) : undefined,
       authorId: authorId ? Number(authorId) : undefined,
     });
   }, [search, type, section, status, ownerId, authorId, viewMode]);
 
-  const hasActiveFilters = type || section || (status && status !== 'OPEN') || search || ownerId || authorId;
+  const hasActiveFilters = type || section || (status && status !== 'NEEDS_RESPONSE') || search || ownerId || authorId;
   const selectedOwner = owners.find((c) => String(c.id) === ownerId);
+  const currentStatusLabel = STATUS_FILTERS.find((s) => s.value === status)?.label ?? status;
 
   const clearAllFilters = () => {
     setSearch('');
     setType('');
     setSection('');
-    setStatus('OPEN');
+    setStatus('NEEDS_RESPONSE');
     setOwnerId('');
     setAuthorId('');
   };
@@ -94,7 +112,7 @@ const FeedPage: React.FC = () => {
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
           <input
             className="input pl-11 bg-gray-50 focus:bg-white"
-            placeholder="Search feed using full-text TSVector index..."
+            placeholder="Search first — title, body, or a bill / case ref"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -123,14 +141,13 @@ const FeedPage: React.FC = () => {
             ))}
           </select>
 
-          <select 
-            className="input flex-1 min-w-[130px] bg-gray-50" 
+          <select
+            className="input flex-1 min-w-[180px] bg-gray-50"
             value={status}
             onChange={(e) => setStatus(e.target.value)}
           >
-            <option value="">All Statuses</option>
-            {STATUSES.map((s) => (
-              <option key={s} value={s}>{s}</option>
+            {STATUS_FILTERS.map((s) => (
+              <option key={s.value} value={s.value}>{s.label}</option>
             ))}
           </select>
 
@@ -171,8 +188,8 @@ const FeedPage: React.FC = () => {
             {section && (
               <span className="badge bg-brand-light text-brand-primary">{section} <button onClick={() => setSection('')} className="ml-1.5 text-brand-primary hover:text-gray-900">✕</button></span>
             )}
-            {status && (
-              <span className="badge bg-brand-light text-brand-primary">{status} <button onClick={() => setStatus('')} className="ml-1.5 text-brand-primary hover:text-gray-900">✕</button></span>
+            {status && status !== 'NEEDS_RESPONSE' && (
+              <span className="badge bg-brand-light text-brand-primary">{currentStatusLabel} <button onClick={() => setStatus('NEEDS_RESPONSE')} className="ml-1.5 text-brand-primary hover:text-gray-900">✕</button></span>
             )}
             <button onClick={clearAllFilters} className="text-xs text-accent-orange hover:text-[#c44719] ml-2 font-medium">
               Clear all
@@ -185,10 +202,10 @@ const FeedPage: React.FC = () => {
         <div className="flex items-center gap-4">
           <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
             <FileText size={18} className="text-brand-primary" />
-            Active Feed
+            Loop
           </h2>
           <span className="text-xs font-bold bg-gray-100 text-gray-700 px-3 py-1 rounded-full border border-gray-200">
-            {stats.totalActive} open • {stats.needReview} need your answer
+            {stats.totalActive} open · {stats.myActiveTasks} need your answer
           </span>
         </div>
         <div className="flex items-center gap-3">
