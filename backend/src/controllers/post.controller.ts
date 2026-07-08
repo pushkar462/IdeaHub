@@ -109,6 +109,7 @@ export const getFeed = async (req: Request, res: Response) => {
     authorId: query.authorId,
     search: query.search,
     needResponse: query.needResponse,
+    viewerId: req.user!.id,
   });
 
   return successResponse(res, 'Feed retrieved', result.items, {
@@ -137,15 +138,26 @@ export const getPost = async (req: Request, res: Response) => {
       attachments: true,
       department: { select: { id: true, name: true, slug: true } },
       workflowMetrics: { select: { slaStatus: true, aiSummaryCache: true } },
-      _count: { select: { comments: { where: { parentId: null } } } }
+      _count: { select: { comments: { where: { parentId: null } }, votes: true } },
+      votes: { where: { userId: req.user!.id }, select: { userId: true } },
     },
   });
 
   if (!post) {
     throw new AppError('Post not found', StatusCodes.NOT_FOUND, 'POST_NOT_FOUND');
   }
-  
-  return successResponse(res, 'Post retrieved', post);
+
+  // Handbook C1 · surface vote state to the client. Keep the raw votes array
+  // out of the response — clients only need count + whether *this* user voted.
+  const { votes, _count, ...rest } = post as any;
+  const hydrated = {
+    ...rest,
+    _count,
+    voteCount: _count?.votes ?? 0,
+    hasVoted: Array.isArray(votes) && votes.length > 0,
+  };
+
+  return successResponse(res, 'Post retrieved', hydrated);
 };
 
 import { notificationService } from '../services/notification.service';
@@ -372,6 +384,31 @@ export const reactToPost = async (req: Request, res: Response) => {
     });
     return successResponse(res, 'Reaction added', reaction, {}, StatusCodes.CREATED);
   }
+};
+
+/* ---------- VOTE ON POST (toggle) ---------- */
+// Handbook C1 · one vote per user per post. Composite PK on `Vote` enforces
+// it at the DB level; this endpoint just toggles.
+export const votePost = async (req: Request, res: Response) => {
+  const postId = Number(req.params.id);
+  if (!Number.isInteger(postId) || postId <= 0) {
+    throw new AppError('Invalid post ID', StatusCodes.BAD_REQUEST, 'INVALID_ID');
+  }
+  const userId = req.user!.id;
+
+  const existing = await prisma.vote.findUnique({
+    where: { postId_userId: { postId, userId } },
+  });
+
+  if (existing) {
+    await prisma.vote.delete({ where: { postId_userId: { postId, userId } } });
+    const voteCount = await prisma.vote.count({ where: { postId } });
+    return successResponse(res, 'Vote removed', { hasVoted: false, voteCount });
+  }
+
+  await prisma.vote.create({ data: { postId, userId } });
+  const voteCount = await prisma.vote.count({ where: { postId } });
+  return successResponse(res, 'Vote recorded', { hasVoted: true, voteCount }, {}, StatusCodes.CREATED);
 };
 
 /* ---------- DELETE POST ---------- */

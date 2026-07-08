@@ -13,13 +13,13 @@ import CreatePostModal from '@/components/posts/CreatePostModal';
 import ResolveModal from '@/components/posts/ResolveModal';
 import api from '@/api/axios';
 import toast from 'react-hot-toast';
-import { ArrowLeft, Edit2, Trash2, ThumbsUp, AlertTriangle, MoreVertical, BookOpen, Sparkles, CheckCircle2, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Edit2, Trash2, ThumbsUp, AlertTriangle, MoreVertical, BookOpen, Sparkles, CheckCircle2, ExternalLink, ArrowBigUp } from 'lucide-react';
 
 const PostDetailPage: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuthStore();
-  const { current: post, loading, fetchPost, updateStatus, deletePost, reactToPost, updatePost } = usePostStore();
+  const { current: post, loading, fetchPost, updateStatus, deletePost, reactToPost, votePost, updatePost } = usePostStore();
   const [editOpen, setEditOpen] = useState(false);
   const [resolveOpen, setResolveOpen] = useState(false);
   const [useCaseMenuOpen, setUseCaseMenuOpen] = useState(false);
@@ -280,14 +280,27 @@ const PostDetailPage: React.FC = () => {
                 <span className="text-xs text-[#0a6dd8] font-bold">{post.owner.name}</span>
               </div>
             )}
+            {post.type === 'IDEA' && (
+              <button
+                onClick={() => votePost(post.id)}
+                aria-pressed={!!post.hasVoted}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-bold transition-all
+                  ${post.hasVoted
+                    ? 'bg-brand-light border-brand-primary/40 text-brand-primary'
+                    : 'bg-white hover:bg-brand-light border-surface-border hover:border-brand-primary/30 text-gray-600 hover:text-brand-primary'}`}
+              >
+                <ArrowBigUp size={16} className={post.hasVoted ? 'fill-brand-primary' : ''} />
+                <span>{post.voteCount ?? 0}</span>
+              </button>
+            )}
             <button
               onClick={() => {
                 if (!isLocked) reactToPost(post.id, '👍');
               }}
               disabled={isLocked}
               className={`flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-bold transition-all
-                ${isLocked 
-                  ? 'bg-gray-50 border-surface-border text-gray-400 cursor-not-allowed' 
+                ${isLocked
+                  ? 'bg-gray-50 border-surface-border text-gray-400 cursor-not-allowed'
                   : 'bg-white hover:bg-brand-light border-surface-border hover:border-brand-primary/30 text-gray-600 hover:text-brand-primary'}`}
             >
               <ThumbsUp size={16} /> <span>{totalReactions}</span>

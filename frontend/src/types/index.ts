@@ -62,9 +62,11 @@ export interface Post {
   reactions: Reaction[];
   comments?: Comment[];
   attachments?: Attachment[];
-  _count?: { comments: number; reactions?: number };
+  _count?: { comments: number; reactions?: number; votes?: number };
   replyCount?: number;
   reactionCount?: number;
+  voteCount?: number;
+  hasVoted?: boolean;
 }
 
 // ── Comment ───────────────────────────────────────────

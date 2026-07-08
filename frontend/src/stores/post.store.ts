@@ -39,6 +39,7 @@ interface PostState {
   updateStatus: (id: number, status: string) => Promise<void>;
   deletePost: (id: number) => Promise<void>;
   reactToPost: (id: number, emoji: string) => Promise<void>;
+  votePost: (id: number) => Promise<void>;
   optimisticUpdate: (id: number, updates: Partial<Post>) => void;
 }
 
@@ -174,6 +175,25 @@ export const usePostStore = create<PostState>((set, get) => ({
       else await get().fetchFeed(get().lastFilters);
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Failed to react');
+    }
+  },
+
+  votePost: async (id) => {
+    // Optimistic toggle — server is the source of truth on failure.
+    const current = get().feed.find((p) => p.id === id) || get().current;
+    const prevHas = Boolean(current?.hasVoted);
+    const prevCount = current?.voteCount ?? 0;
+    get().optimisticUpdate(id, {
+      hasVoted: !prevHas,
+      voteCount: Math.max(0, prevCount + (prevHas ? -1 : 1)),
+    });
+    try {
+      const { data } = await api.post(`/posts/${id}/vote`);
+      get().optimisticUpdate(id, { hasVoted: !!data.hasVoted, voteCount: data.voteCount ?? 0 });
+    } catch (error: any) {
+      // Revert on failure
+      get().optimisticUpdate(id, { hasVoted: prevHas, voteCount: prevCount });
+      toast.error(error.response?.data?.message || 'Failed to vote');
     }
   },
 

@@ -47,8 +47,9 @@ export class FeedService {
     departmentId?: number;
     search?: string;
     needResponse?: boolean;
+    viewerId?: number;
   }): Promise<PaginatedFeedResult> {
-    const { cursor: nextCursor, limit = 20, type, section, status, ownerId, authorId, departmentId, search, needResponse } = params;
+    const { cursor: nextCursor, limit = 20, type, section, status, ownerId, authorId, departmentId, search, needResponse, viewerId } = params;
 
     const cursorObj = nextCursor ? decodeCursor(nextCursor) : undefined;
     if (nextCursor && !cursorObj) throw new AppError('Invalid nextCursor format', 400);
@@ -123,8 +124,11 @@ export class FeedService {
             select: { slaStatus: true },
           },
           _count: {
-            select: { comments: true, reactions: true },
+            select: { comments: true, reactions: true, votes: true },
           },
+          votes: viewerId
+            ? { where: { userId: viewerId }, select: { userId: true } }
+            : false,
         },
       }),
       prisma.post.count({ where }),
@@ -141,7 +145,7 @@ export class FeedService {
         : null;
 
     return {
-      items: paginatedItems.map(mapToFeedCardDTO as any),
+      items: paginatedItems.map((p) => mapToFeedCardDTO(p as any, viewerId)),
       nextCursor: nextCursorString,
       hasMore,
       total,

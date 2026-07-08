@@ -31,6 +31,8 @@ export type FeedCardDTO = {
   attachments: AttachmentDTO[];
   replyCount: number;
   reactionCount: number;
+  voteCount: number;
+  hasVoted: boolean;
   department?: { id: number; name: string; slug: string } | null;
   workflowMetrics?: { slaStatus: string } | null;
   // Intentionally excludes full comment tree, raw internal payload blobs, etc.
@@ -61,8 +63,10 @@ export const mapToFeedCardDTO = (
     author: Pick<User, 'id' | 'name' | 'role' | 'avatarUrl'>;
     owner: Pick<User, 'id' | 'name' | 'role' | 'avatarUrl'> | null;
     attachments?: Pick<Attachment, 'id' | 'url' | 'filename' | 'mimeType'>[];
-    _count?: { comments: number; reactions?: number };
-  }
+    _count?: { comments: number; reactions?: number; votes?: number };
+    votes?: { userId: number }[];
+  },
+  viewerId?: number,
 ): FeedCardDTO => ({
   id: post.id,
   postNumber: post.postNumber,
@@ -85,6 +89,8 @@ export const mapToFeedCardDTO = (
   })),
   replyCount: post._count?.comments || 0,
   reactionCount: post._count?.reactions || 0,
+  voteCount: post._count?.votes ?? 0,
+  hasVoted: viewerId ? (post.votes ?? []).some((v) => v.userId === viewerId) : false,
   department: (post as any).department ?? null,
   workflowMetrics: (post as any).workflowMetrics ?? null,
 });

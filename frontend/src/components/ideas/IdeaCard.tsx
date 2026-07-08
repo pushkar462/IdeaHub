@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { ArrowBigUp } from 'lucide-react';
 import { Post } from '@/types';
 import Avatar from '@/components/shared/Avatar';
 import StatusBadge from '@/components/posts/StatusBadge';
@@ -7,12 +8,12 @@ import StatusBadge from '@/components/posts/StatusBadge';
 interface Props {
   post: Post;
   onApprove?: (id: number) => void;
-  onReact?: (id: number, emoji: string) => void;
+  onVote?: (id: number) => void;
 }
 
-const IdeaCard: React.FC<Props> = ({ post, onApprove, onReact }) => {
-  const reactions = post.reactions ?? [];
-  const thumbsUp = reactions.filter((r) => r.emoji === '👍').length;
+const IdeaCard: React.FC<Props> = ({ post, onApprove, onVote }) => {
+  const voteCount = post.voteCount ?? 0;
+  const hasVoted  = Boolean(post.hasVoted);
 
   return (
     <div className="card p-5 hover:shadow-lg transition-shadow animate-in">
@@ -36,8 +37,6 @@ const IdeaCard: React.FC<Props> = ({ post, onApprove, onReact }) => {
         <p className="text-sm text-gray-500 line-clamp-3">{post.description}</p>
       </Link>
 
-
-
       <div className="flex items-center justify-between mt-4 pt-3 border-t border-surface-border">
         <div className="flex items-center gap-2">
           <Avatar user={post.author} size="sm" />
@@ -45,10 +44,16 @@ const IdeaCard: React.FC<Props> = ({ post, onApprove, onReact }) => {
         </div>
         <div className="flex items-center gap-3">
           <button
-            onClick={() => onReact?.(post.id, '👍')}
-            className="flex items-center gap-1 text-xs text-gray-400 hover:text-amber-500 transition-colors"
+            onClick={() => onVote?.(post.id)}
+            aria-pressed={hasVoted}
+            className={`flex items-center gap-1 px-2.5 py-1 rounded-lg border text-xs font-semibold transition-colors ${
+              hasVoted
+                ? 'bg-brand-light text-brand-primary border-brand-primary/40'
+                : 'bg-white text-gray-500 border-surface-border hover:text-brand-primary hover:border-brand-primary/30'
+            }`}
           >
-            👍 <span>{thumbsUp}</span>
+            <ArrowBigUp size={14} className={hasVoted ? 'fill-brand-primary' : ''} />
+            <span>{voteCount}</span>
           </button>
           {onApprove && (post.status === 'OPEN' || post.status === 'DISCUSSING') && (
             <button

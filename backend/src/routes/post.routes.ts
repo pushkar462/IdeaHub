@@ -6,6 +6,7 @@ import {
   updatePost,
   updateStatus,
   reactToPost,
+  votePost,
   deletePost,
   getPostComments,
   getStats,
@@ -29,6 +30,7 @@ router.get('/:id/comments', authenticate, validate(getCommentsSchema), getPostCo
 router.patch('/:id/status', authenticate, validate(updatePostStatusSchema), updateStatus);
 router.patch('/:id', authenticate, uploadLimiter, uploadRaw.single('attachment'), validateMagicBytes, validate(updatePostSchema), updatePost);
 router.post('/:id/react', authenticate, validate(reactToPostSchema), reactToPost);
+router.post('/:id/vote',  authenticate, votePost);
 router.delete('/:id', authenticate, deletePost);
 
 export default router;

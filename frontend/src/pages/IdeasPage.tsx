@@ -10,7 +10,7 @@ import api from '@/api/axios';
 const TYPES = ['', 'QUESTION', 'PROBLEM', 'IDEA'];
 
 const IdeasPage: React.FC = () => {
-  const { feed, loading, fetchFeed, reactToPost } = usePostStore();
+  const { feed, loading, fetchFeed, votePost } = usePostStore();
   const { user } = useAuthStore();
   const [showModal, setShowModal] = useState(false);
   const [type, setType] = useState('');
@@ -93,7 +93,7 @@ const IdeasPage: React.FC = () => {
                   <IdeaCard
                     key={p.id}
                     post={p}
-                    onReact={(id, emoji) => reactToPost(id, emoji)}
+                    onVote={(id) => votePost(id)}
                     onApprove={(user?.role === 'FOUNDER' || user?.role === 'ADMIN') ? handleApprove : undefined}
                   />
                 ))}
@@ -113,7 +113,7 @@ const IdeasPage: React.FC = () => {
                   <IdeaCard
                     key={p.id}
                     post={p}
-                    onReact={(id, emoji) => reactToPost(id, emoji)}
+                    onVote={(id) => votePost(id)}
                     onApprove={(user?.role === 'FOUNDER' || user?.role === 'ADMIN') ? handleApprove : undefined}
                   />
                 ))}
@@ -133,7 +133,7 @@ const IdeasPage: React.FC = () => {
                   <IdeaCard
                     key={p.id}
                     post={p}
-                    onReact={(id, emoji) => reactToPost(id, emoji)}
+                    onVote={(id) => votePost(id)}
                   />
                 ))}
               </div>

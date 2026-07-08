@@ -86,6 +86,7 @@ model User {
   sectionOwnerships SectionOwnership[]
   comments      Comment[]
   reactions     Reaction[]
+  votes         Vote[]
 
   // Notifications
   notifications     Notification[] @relation("NotificationsReceived")
@@ -140,6 +141,7 @@ model Post {
 
   comments        Comment[]
   reactions       Reaction[]
+  votes           Vote[]
   attachments     Attachment[]
   mentions        Mention[]
   notifications   Notification[]
@@ -196,6 +198,20 @@ model Reaction {
 
   @@unique([userId, postId, emoji])
   @@unique([userId, commentId, emoji])
+}
+
+// Handbook C1 · loop_votes. Composite PK enforces one vote per user per post.
+model Vote {
+  postId    Int
+  userId    Int
+  createdAt DateTime @default(now())
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([postId, userId])
+  @@index([postId])
+  @@index([userId])
 }
 
 model Attachment {
