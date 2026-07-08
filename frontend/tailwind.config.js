@@ -29,8 +29,10 @@ export default {
         }
       },
       fontFamily: {
-        // Will use Outfit as the fallback for Smooldhan
-        sans: ['Outfit', 'system-ui', 'sans-serif'],
+        // Body copy — brand manual specifies Anek Devanagari.
+        sans:    ['"Anek Devanagari"', 'system-ui', 'sans-serif'],
+        // Headings — brand manual specifies Quattrocento (serif).
+        heading: ['Quattrocento', 'Georgia', 'serif'],
       },
       boxShadow: {
         card: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
