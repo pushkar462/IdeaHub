@@ -13,6 +13,7 @@ import userRoutes from './routes/user.routes';
 import intelligenceRoutes from './routes/v1/intelligence.route';
 import departmentRoutes from './routes/v1/department.route';
 import adminRoutes from './routes/admin.routes';
+import digestRoutes from './routes/digest.routes';
 import { errorHandler } from './middleware/error.middleware';
 import { tracingMiddleware } from './middleware/tracing.middleware';
 import { config } from './config/env.config';
@@ -52,6 +53,7 @@ app.use('/api/intelligence', intelligenceRoutes);
 app.use('/api/departments', departmentRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/digest', digestRoutes);
 
 // Health check
 app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));

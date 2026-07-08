@@ -11,6 +11,8 @@ import {
   User as UserIcon,
   Shield,
   Activity,
+  Users,
+  BookOpen,
   LogOut,
   X
 } from 'lucide-react';
@@ -24,8 +26,10 @@ const NAV = [
 ];
 
 const ADMIN_NAV = [
-  { to: '/admin/loop-health', icon: Activity, label: 'Loop health' },
-  { to: '/admin/roles',       icon: Shield,   label: 'Role Management' },
+  { to: '/admin/loop-health',    icon: Activity, label: 'Loop health'    },
+  { to: '/admin/section-owners', icon: Users,    label: 'Section owners' },
+  { to: '/admin/kb-sweep',       icon: BookOpen, label: 'KB sweep'       },
+  { to: '/admin/roles',          icon: Shield,   label: 'Role Management' },
 ];
 
 interface SidebarProps {

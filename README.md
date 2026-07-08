@@ -99,5 +99,25 @@ GROK_API_KEY="your-grok-api-key"
 VITE_API_URL=http://localhost:4000/api
 ```
 
+## 📨 Weekly digest (n8n)
+
+Handbook Section 6 delivers a weekly "you asked, we did it" summary over the existing WhatsApp/email path Athwart already uses. The backend exposes the data; n8n owns the schedule and delivery.
+
+- **Endpoint:** `GET /api/digest/weekly`
+- **Auth:** header `X-Digest-Token: $DIGEST_TOKEN` (must match `backend/.env`). When `DIGEST_TOKEN` is unset the endpoint returns 503 — a safe default.
+- **Rotation:** treat the token like a credential. Rotate quarterly, keep out of client bundles, log every call server-side.
+- **Payload shape:**
+  ```json
+  {
+    "windowStart": "...",
+    "windowEnd":   "...",
+    "newPosts":    { "total": 12, "top": [ { "postNumber": "LOOP-2026-0042", "commentCount": 8, ... } ] },
+    "resolved":    [ { "postNumber": "...", "resolution": "ANSWERED", "resolverFirstName": "Pushkar" } ],
+    "awaiting":    { "questions": [...], "ideas": [...] },
+    "namedRecognition": { "firstName": "Pushkar", "resolvedCount": 3 }
+  }
+  ```
+- **n8n recipe:** Schedule (Fri 10:00) → HTTP Request (GET with the header) → Format → WhatsApp/Email node. Keep the message tight — the endpoint is intentionally PII-light (first names only).
+
 ## 📜 License
 MIT

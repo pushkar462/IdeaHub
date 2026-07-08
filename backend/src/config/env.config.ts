@@ -14,4 +14,7 @@ export const config = cleanEnv(process.env, {
   SUPABASE_URL: str({ default: '', desc: 'Supabase project URL (required when STORAGE_PROVIDER=supabase)' }),
   SUPABASE_SERVICE_ROLE_KEY: str({ default: '', desc: 'Supabase service role key (required when STORAGE_PROVIDER=supabase)' }),
   SUPABASE_STORAGE_BUCKET: str({ default: 'uploads', desc: 'Supabase Storage bucket name' }),
+  // Handbook C4 · shared secret for the n8n weekly-digest consumer. Empty
+  // disables the endpoint entirely (safer default). Rotate quarterly.
+  DIGEST_TOKEN: str({ default: '', desc: 'Bearer token n8n sends via X-Digest-Token when fetching /api/digest/weekly' }),
 });

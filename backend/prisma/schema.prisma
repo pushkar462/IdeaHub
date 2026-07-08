@@ -118,6 +118,11 @@ model Post {
   // Handbook C6: when a Problem/Idea resolves to build work, the resolver
   // records the GitHub issue URL that will track execution.
   buildIssueUrl    String?
+  // Handbook B6: monthly KB sweep — lead marks each RESOLVED Use Case as swept
+  // into the section knowledge base. Metadata (where it landed) is captured on
+  // the KB_SWEPT audit-log row, not duplicated on the post.
+  sweptToKb        Boolean  @default(false)
+  sweptAt          DateTime?
   // Handbook C4: generated tsvector column + GIN index for search-first.
   // Managed by migration 20260709120000_search_vector_gin — accessed only via raw SQL.
   searchVector    Unsupported("tsvector")?
@@ -271,6 +276,7 @@ enum AuditActionType {
   COMMENT_CREATED
   COMMENT_DELETED
   ATTACHMENT_UPLOADED
+  KB_SWEPT
 }
 
 enum AuditEntityType {

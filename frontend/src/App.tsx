@@ -13,6 +13,8 @@ import ProfilePage from '@/pages/ProfilePage';
 import PostDetailPage from '@/pages/PostDetailPage';
 import RoleManagementPage from '@/pages/RoleManagementPage';
 import AdminLoopHealthPage from '@/pages/AdminLoopHealthPage';
+import AdminSectionOwnersPage from '@/pages/AdminSectionOwnersPage';
+import AdminKbSweepPage from '@/pages/AdminKbSweepPage';
 
 const App: React.FC = () => (
   <>
@@ -34,7 +36,9 @@ const App: React.FC = () => (
           <Route path="/profile/:id" element={<ProfilePage />} />
           <Route path="/post/:id" element={<PostDetailPage />} />
           <Route path="/admin/roles" element={<RoleManagementPage />} />
-          <Route path="/admin/loop-health" element={<AdminLoopHealthPage />} />
+          <Route path="/admin/loop-health"    element={<AdminLoopHealthPage />} />
+          <Route path="/admin/section-owners" element={<AdminSectionOwnersPage />} />
+          <Route path="/admin/kb-sweep"       element={<AdminKbSweepPage />} />
         </Route>
       </Route>
 

@@ -9,8 +9,10 @@ const PAGE_TITLES: Record<string, string> = {
   '/archive':       'Memory Archive',
   '/notifications': 'Notifications',
   '/profile':       'My contributions',
-  '/admin/roles':       'Role Management',
-  '/admin/loop-health': 'Loop health',
+  '/admin/roles':          'Role Management',
+  '/admin/loop-health':    'Loop health',
+  '/admin/section-owners': 'Section owners',
+  '/admin/kb-sweep':       'KB sweep',
 };
 
 interface TopbarProps {
