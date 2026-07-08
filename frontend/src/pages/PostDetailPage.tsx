@@ -11,6 +11,7 @@ import RenderMentionText from '@/components/shared/RenderMentionText';
 import AttachmentList from '@/components/posts/AttachmentList';
 import CreatePostModal from '@/components/posts/CreatePostModal';
 import ResolveModal from '@/components/posts/ResolveModal';
+import SimilarPosts from '@/components/posts/SimilarPosts';
 import api from '@/api/axios';
 import toast from 'react-hot-toast';
 import { ArrowLeft, Edit2, Trash2, ThumbsUp, AlertTriangle, MoreVertical, BookOpen, Sparkles, CheckCircle2, ExternalLink, ArrowBigUp } from 'lucide-react';
@@ -319,6 +320,8 @@ const PostDetailPage: React.FC = () => {
       </div>
 
       <AISummary postId={post.id} initialSummary={post.workflowMetrics?.aiSummaryCache} isLocked={isLocked} />
+
+      <SimilarPosts postId={post.id} />
 
       {canonicalComment && (
         <div className="card p-6 lg:p-8 border-l-4 border-l-green-500 bg-green-50/40">

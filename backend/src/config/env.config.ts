@@ -17,4 +17,9 @@ export const config = cleanEnv(process.env, {
   // Handbook C4 · shared secret for the n8n weekly-digest consumer. Empty
   // disables the endpoint entirely (safer default). Rotate quarterly.
   DIGEST_TOKEN: str({ default: '', desc: 'Bearer token n8n sends via X-Digest-Token when fetching /api/digest/weekly' }),
+  // Handbook Phase 2 · P4 · pgvector embeddings. Selection of the embedding
+  // provider. `noop` (default) keeps Loop standalone with no external calls.
+  // `openai` requires OPENAI_API_KEY.
+  EMBED_PROVIDER: str({ choices: ['noop', 'openai'], default: 'noop', desc: 'Semantic-search embedding provider' }),
+  OPENAI_API_KEY: str({ default: '', desc: 'OpenAI API key (only used when EMBED_PROVIDER=openai)' }),
 });

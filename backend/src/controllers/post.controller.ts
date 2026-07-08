@@ -8,6 +8,7 @@ import { mentionService } from '../services/mention.service';
 
 import { getSectionOwner } from '../utils/section.util';
 import { Type, Section, Status } from '@prisma/client';
+import { semanticSearchService } from '../services/search/semantic-search.service';
 
 /* ---------- CREATE POST ---------- */
 export const createPost = async (req: Request, res: Response) => {
@@ -96,6 +97,8 @@ export const createPost = async (req: Request, res: Response) => {
           postId: post.id,
         }, undefined).catch(e => console.warn('owner notification failed:', e))
       : Promise.resolve(),
+    // Handbook P4 · index for semantic search. No-op when embeddings disabled.
+    semanticSearchService.indexPostAsync(post.id, `${post.title}\n\n${post.description}`),
   ]).catch(() => {});
 
   return successResponse(res, 'Post created successfully', post, {}, StatusCodes.CREATED);
@@ -355,6 +358,13 @@ export const updatePost = async (req: Request, res: Response) => {
     mentionService.processMentions({ text: description, authorId: userId, postId: id }).catch((e) =>
       console.warn('processMentions failed:', e)
     );
+  }
+
+  // Handbook P4 · re-index embedding whenever title or description changes.
+  if (title !== undefined || description !== undefined) {
+    semanticSearchService
+      .indexPostAsync(id, `${post.title}\n\n${post.description}`)
+      .catch(() => {});
   }
 
   return successResponse(res, 'Post updated successfully', post);
