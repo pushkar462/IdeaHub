@@ -4,6 +4,7 @@ import { Section } from '@prisma/client';
 import prisma from '../config/db';
 import { AppError } from '../utils/AppError';
 import { successResponse } from '../utils/response.util';
+import { kbNominationService } from '../services/intelligence/kb-nomination.service';
 
 function requireAdmin(req: Request) {
   const role = req.user!.role;
@@ -82,6 +83,16 @@ export const listKbCandidates = async (req: Request, res: Response) => {
     },
   });
   return successResponse(res, 'KB candidates retrieved', items);
+};
+
+/* ---------- KB NOMINATIONS (P5 · LLM-suggested Use Cases) ---------- */
+// Scans recent RESOLVED posts, asks Groq which ones look like they became
+// rules, and returns nominations. The lead flags graduation by hand — this
+// endpoint never mutates.
+export const kbNominations = async (req: Request, res: Response) => {
+  requireAdmin(req);
+  const nominations = await kbNominationService.nominateCandidates();
+  return successResponse(res, 'KB nominations generated', nominations);
 };
 
 export const sweepToKb = async (req: Request, res: Response) => {

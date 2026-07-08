@@ -52,6 +52,18 @@ const CreatePostModal: React.FC<Props> = ({ isOpen, onClose, post }) => {
   const [checkingDuplicate, setCheckingDuplicate] = useState(false);
   const [activeCampaigns, setActiveCampaigns] = useState<ActiveCampaign[]>([]);
 
+  // Handbook P5 · auto-tag suggestion. Non-blocking hint the human confirms.
+  const [autoTag, setAutoTag] = useState<{
+    type: string | null;
+    section: string | null;
+    confidence: 'high' | 'medium' | 'low' | 'none';
+    reasoning: string | null;
+  } | null>(null);
+  const [autoTagChecking, setAutoTagChecking] = useState(false);
+  // Track whether the user manually changed type/section — if so we stop suggesting.
+  const [userTouchedType, setUserTouchedType] = useState(false);
+  const [userTouchedSection, setUserTouchedSection] = useState(false);
+
   useEffect(() => {
     if (isEditMode || !form.title || form.title.trim().length < 10) {
       setDuplicateMatch(null);
@@ -112,6 +124,31 @@ const CreatePostModal: React.FC<Props> = ({ isOpen, onClose, post }) => {
       })
       .catch(() => setActiveCampaigns([]));
   }, [isOpen, isEditMode]);
+
+  // Handbook P5 · debounced auto-tag classifier. Runs once the draft has
+  // enough substance; suggestion is never applied automatically.
+  useEffect(() => {
+    if (isEditMode) return;
+    const titleTrim = form.title.trim();
+    if (titleTrim.length < 10 || (userTouchedType && userTouchedSection)) {
+      return;
+    }
+    const timer = setTimeout(async () => {
+      setAutoTagChecking(true);
+      try {
+        const { data } = await api.post('/intelligence/classify', {
+          title: form.title,
+          body:  form.description,
+        });
+        setAutoTag(data ?? null);
+      } catch {
+        setAutoTag(null);
+      } finally {
+        setAutoTagChecking(false);
+      }
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [form.title, form.description, isEditMode, userTouchedType, userTouchedSection]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = e.target.files?.[0] || null;
@@ -261,7 +298,7 @@ const CreatePostModal: React.FC<Props> = ({ isOpen, onClose, post }) => {
                   <button
                     type="button"
                     key={value}
-                    onClick={() => setForm({ ...form, type: value })}
+                    onClick={() => { setForm({ ...form, type: value }); setUserTouchedType(true); }}
                     className={`flex flex-col items-start gap-1 rounded-xl border px-3 py-2 text-left transition-colors ${
                       active
                         ? 'border-brand-primary bg-brand-light/60 text-brand-primary'
@@ -276,13 +313,58 @@ const CreatePostModal: React.FC<Props> = ({ isOpen, onClose, post }) => {
                 );
               })}
             </div>
+            {!isEditMode && autoTag && autoTag.confidence !== 'none' && (autoTag.type || autoTag.section) && (
+              (() => {
+                const canApplyType    = autoTag.type    && !userTouchedType    && autoTag.type    !== form.type;
+                const canApplySection = autoTag.section && !userTouchedSection && autoTag.section !== form.section;
+                if (!canApplyType && !canApplySection) return null;
+                return (
+                  <div className="mt-3 p-3 rounded-xl bg-brand-light/60 border border-brand-primary/25 flex items-start gap-3">
+                    <Sparkles size={14} className="text-brand-primary mt-0.5 shrink-0" />
+                    <div className="flex-1 min-w-0 text-xs text-gray-700">
+                      <div className="text-brand-primary font-semibold mb-0.5">
+                        Loop AI suggests
+                        {canApplyType && <> · <span className="font-mono">{autoTag.type}</span></>}
+                        {canApplySection && <> · <span className="font-mono">{autoTag.section}</span></>}
+                        <span className="ml-1 text-[10px] text-gray-500">({autoTag.confidence})</span>
+                      </div>
+                      {autoTag.reasoning && <div className="text-gray-600 italic">{autoTag.reasoning}</div>}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setForm((f) => ({
+                          ...f,
+                          type:    canApplyType    ? (autoTag.type    as typeof f.type)    : f.type,
+                          section: canApplySection ? (autoTag.section as typeof f.section) : f.section,
+                        }));
+                        setAutoTag(null);
+                      }}
+                      className="text-[11px] font-semibold text-brand-primary hover:underline shrink-0"
+                    >
+                      Apply
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setAutoTag(null)}
+                      className="text-[11px] text-gray-400 hover:text-gray-700 shrink-0"
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                );
+              })()
+            )}
+            {!isEditMode && autoTagChecking && !autoTag && (
+              <p className="text-[11px] text-gray-400 italic mt-2 animate-pulse">Loop AI is guessing type…</p>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="label">Section</label>
               <select className="input bg-gray-50 focus:bg-white" value={form.section}
-                onChange={(e) => setForm({ ...form, section: e.target.value })}>
+                onChange={(e) => { setForm({ ...form, section: e.target.value }); setUserTouchedSection(true); }}>
                 {SECTIONS.map((p) => (
                   <option key={p} value={p}>{p}</option>
                 ))}

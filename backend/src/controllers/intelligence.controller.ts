@@ -6,6 +6,7 @@ import { assignmentRecommendationService } from '../services/intelligence/assign
 import { workflowSummaryService } from '../services/intelligence/workflow-summary.service';
 import { duplicateCheckService } from '../services/intelligence/duplicate-check.service';
 import { draftResponseService } from '../services/intelligence/draft-response.service';
+import { autoTagService } from '../services/intelligence/auto-tag.service';
 import prisma from '../config/db';
 
 /* ---------- RECOMMEND ASSIGNEE ---------- */
@@ -77,6 +78,20 @@ export const checkDuplicate = async (req: Request, res: Response) => {
 
   const result = await duplicateCheckService.checkForDuplicates(title, body);
   return successResponse(res, 'Duplicate check completed', result);
+};
+
+/* ---------- CLASSIFY (Phase 2 · P5 auto-tag) ---------- */
+// Non-blocking: hint the composer with a suggested type + section. Any
+// authenticated user; result is a suggestion, never applied server-side.
+export const classifyPost = async (req: Request, res: Response) => {
+  const { title, body } = req.body ?? {};
+  if (!title || typeof title !== 'string' || title.trim().length < 3) {
+    return successResponse(res, 'Not enough text to classify', {
+      type: null, section: null, confidence: 'none', reasoning: null,
+    });
+  }
+  const result = await autoTagService.classify(title, typeof body === 'string' ? body : '');
+  return successResponse(res, 'Classification complete', result);
 };
 
 /* ---------- DRAFT RESPONSE (E2) ---------- */
