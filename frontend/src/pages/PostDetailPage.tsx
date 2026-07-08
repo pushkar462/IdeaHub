@@ -156,6 +156,15 @@ const PostDetailPage: React.FC = () => {
                 <BookOpen size={12} /> Graduated: Use Case
               </span>
             )}
+
+            {post.campaign && (
+              <Link
+                to={`/campaigns/${post.campaign.id}`}
+                className="badge bg-brand-light text-brand-primary border border-brand-primary/30 hover:bg-brand-primary/20 transition-colors flex items-center gap-1"
+              >
+                📣 {post.campaign.title}
+              </Link>
+            )}
           </div>
           <div className="flex items-center gap-3">
             {canStartDiscussing && post.status === 'OPEN' && (

@@ -87,6 +87,7 @@ model User {
   comments      Comment[]
   reactions     Reaction[]
   votes         Vote[]
+  campaignsCreated Campaign[]  @relation("CampaignCreator")
 
   // Notifications
   notifications     Notification[] @relation("NotificationsReceived")
@@ -138,6 +139,11 @@ model Post {
   // Phase 3B: Department Workflow routing
   departmentId Int?
   department   Department? @relation(fields: [departmentId], references: [id])
+
+  // Handbook B8 · optional campaign tag. Only Ideas typically carry this.
+  campaignId Int?
+  campaign   Campaign? @relation("CampaignPosts", fields: [campaignId], references: [id], onDelete: SetNull)
+  campaignWinnerOf Campaign[] @relation("CampaignWinner")
 
   comments        Comment[]
   reactions       Reaction[]
@@ -340,6 +346,35 @@ enum SLAStatus {
   HEALTHY
   AT_RISK
   BREACHED
+}
+
+enum CampaignStatus {
+  ACTIVE
+  CLOSED
+}
+
+// Handbook B8 · time-boxed themed prompts. Founder posts one campaign per
+// month; contributors tag Ideas against it; the founder picks the winner.
+model Campaign {
+  id          Int             @id @default(autoincrement())
+  title       String
+  prompt      String
+  themeTag    String?
+  startsAt    DateTime        @default(now())
+  endsAt      DateTime
+  status      CampaignStatus  @default(ACTIVE)
+  createdById Int
+  createdBy   User            @relation("CampaignCreator", fields: [createdById], references: [id])
+  winnerId    Int?
+  winner      Post?           @relation("CampaignWinner", fields: [winnerId], references: [id])
+  closedAt    DateTime?
+
+  posts       Post[]          @relation("CampaignPosts")
+
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([status, endsAt])
 }
 
 model WorkflowMetrics {

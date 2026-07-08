@@ -24,6 +24,8 @@ const TYPE_OPTIONS: Array<{ value: 'QUESTION' | 'PROBLEM' | 'IDEA'; label: strin
 ];
 const SECTIONS = ['BILLS', 'INVOICING', 'PATIENTS', 'CASES', 'PARTNERS', 'HOSPITALS', 'DOCTORS', 'WHATSAPP', 'PLATFORM', 'GENERAL'];
 
+interface ActiveCampaign { id: number; title: string; themeTag?: string | null }
+
 const emptyForm = {
   title: '',
   description: '',
@@ -32,6 +34,7 @@ const emptyForm = {
   isUseCase: false,
   linkedEntityType: '' as '' | 'BILL' | 'CASE' | 'PARTNER',
   linkedEntityId: '',
+  campaignId: '' as '' | string,
 };
 
 const CreatePostModal: React.FC<Props> = ({ isOpen, onClose, post }) => {
@@ -47,6 +50,7 @@ const CreatePostModal: React.FC<Props> = ({ isOpen, onClose, post }) => {
   
   const [duplicateMatch, setDuplicateMatch] = useState<any>(null);
   const [checkingDuplicate, setCheckingDuplicate] = useState(false);
+  const [activeCampaigns, setActiveCampaigns] = useState<ActiveCampaign[]>([]);
 
   useEffect(() => {
     if (isEditMode || !form.title || form.title.trim().length < 10) {
@@ -84,6 +88,7 @@ const CreatePostModal: React.FC<Props> = ({ isOpen, onClose, post }) => {
         isUseCase: post.isUseCase,
         linkedEntityType: (post.linkedEntityType as any) || '',
         linkedEntityId: post.linkedEntityId || '',
+        campaignId: post.campaignId ? String(post.campaignId) : '',
       });
       setExistingAttachments(post.attachments ?? []);
       setRemovedAttachmentIds([]);
@@ -97,6 +102,16 @@ const CreatePostModal: React.FC<Props> = ({ isOpen, onClose, post }) => {
       setError('');
     }
   }, [isOpen, post]);
+
+  useEffect(() => {
+    if (!isOpen || isEditMode) return;
+    api.get('/campaigns', { params: { status: 'ACTIVE' } })
+      .then((res) => {
+        const list = (res.data as unknown as ActiveCampaign[]) ?? [];
+        setActiveCampaigns(list);
+      })
+      .catch(() => setActiveCampaigns([]));
+  }, [isOpen, isEditMode]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = e.target.files?.[0] || null;
@@ -125,6 +140,7 @@ const CreatePostModal: React.FC<Props> = ({ isOpen, onClose, post }) => {
       payload.append('isUseCase', String(form.isUseCase));
       if (form.linkedEntityType) payload.append('linkedEntityType', form.linkedEntityType);
       if (form.linkedEntityId) payload.append('linkedEntityId', form.linkedEntityId);
+      if (form.campaignId) payload.append('campaignId', form.campaignId);
 
       if (file) payload.append('attachment', file);
 
@@ -329,6 +345,29 @@ const CreatePostModal: React.FC<Props> = ({ isOpen, onClose, post }) => {
               </MentionsInput>
             </div>
           </div>
+
+          {form.type === 'IDEA' && !isEditMode && activeCampaigns.length > 0 && (
+            <div>
+              <label className="label flex items-center gap-2">
+                <Sparkles size={14} className="text-brand-primary" /> Tag to a campaign (optional)
+              </label>
+              <select
+                className="input bg-gray-50 focus:bg-white"
+                value={form.campaignId}
+                onChange={(e) => setForm({ ...form, campaignId: e.target.value })}
+              >
+                <option value="">None — post outside any campaign</option>
+                {activeCampaigns.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.title}{c.themeTag ? `  ·  #${c.themeTag}` : ''}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-500 mt-1">
+                Handbook B8 · campaign-tagged ideas are surfaced together and voted on.
+              </p>
+            </div>
+          )}
 
           <label className="flex items-center gap-3 p-4 border border-surface-border rounded-xl bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors">
             <input

@@ -30,6 +30,8 @@ export const getFeedSchema = z.object({
     // Handbook D1: "Open / needs response" — restrict to OPEN posts that have not
     // been acknowledged by an owner yet. Client sends `needResponse=true`.
     needResponse: z.union([z.string(), z.boolean()]).optional().transform(val => val === 'true' || val === true),
+    // Handbook B8 · scope the board to a campaign's posts.
+    campaignId: z.union([z.string(), z.number()]).optional().transform(val => val ? Number(val) : undefined),
   }).strict()
 });
 

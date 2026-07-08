@@ -13,6 +13,8 @@ const PAGE_TITLES: Record<string, string> = {
   '/admin/loop-health':    'Loop health',
   '/admin/section-owners': 'Section owners',
   '/admin/kb-sweep':       'KB sweep',
+  '/admin/campaigns':      'Manage campaigns',
+  '/campaigns':            'Campaigns',
 };
 
 interface TopbarProps {

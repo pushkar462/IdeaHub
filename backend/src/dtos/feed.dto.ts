@@ -34,6 +34,7 @@ export type FeedCardDTO = {
   voteCount: number;
   hasVoted: boolean;
   department?: { id: number; name: string; slug: string } | null;
+  campaign?: { id: number; title: string; status: string } | null;
   workflowMetrics?: { slaStatus: string } | null;
   // Intentionally excludes full comment tree, raw internal payload blobs, etc.
 };
@@ -92,6 +93,9 @@ export const mapToFeedCardDTO = (
   voteCount: post._count?.votes ?? 0,
   hasVoted: viewerId ? (post.votes ?? []).some((v) => v.userId === viewerId) : false,
   department: (post as any).department ?? null,
+  campaign: (post as any).campaign
+    ? { id: (post as any).campaign.id, title: (post as any).campaign.title, status: (post as any).campaign.status }
+    : null,
   workflowMetrics: (post as any).workflowMetrics ?? null,
 });
 

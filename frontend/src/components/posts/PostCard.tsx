@@ -77,6 +77,17 @@ const PostCard: React.FC<Props> = ({ post, onReact, onEdit, onDelete }) => {
             </span>
           )}
 
+          {post.campaign && (
+            <Link
+              to={`/campaigns/${post.campaign.id}`}
+              onClick={(e) => e.stopPropagation()}
+              className="badge bg-brand-light text-brand-primary border border-brand-primary/30 hover:bg-brand-primary/20 transition-colors"
+              title={post.campaign.title}
+            >
+              📣 {post.campaign.title.length > 24 ? post.campaign.title.slice(0, 24) + '…' : post.campaign.title}
+            </Link>
+          )}
+
           {post.owner && (
             <span className="badge bg-transparent text-[#77f0ec] border-[#77f0ec] flex items-center gap-1">
               {post.owner.name}

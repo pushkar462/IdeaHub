@@ -11,8 +11,18 @@ import { Type, Section, Status } from '@prisma/client';
 
 /* ---------- CREATE POST ---------- */
 export const createPost = async (req: Request, res: Response) => {
-  const { title, description, type, section, isUseCase, linkedEntityType, linkedEntityId } = req.body;
+  const { title, description, type, section, isUseCase, linkedEntityType, linkedEntityId, campaignId } = req.body;
   const authorId = req.user!.id;
+
+  // Handbook B8: only allow tagging to an ACTIVE campaign. Silently drop otherwise.
+  let resolvedCampaignId: number | undefined;
+  if (campaignId) {
+    const cid = Number(campaignId);
+    if (Number.isInteger(cid) && cid > 0) {
+      const c = await prisma.campaign.findUnique({ where: { id: cid }, select: { status: true } });
+      if (c?.status === 'ACTIVE') resolvedCampaignId = cid;
+    }
+  }
 
   let attachmentData = null;
   if (req.file) {
@@ -54,6 +64,7 @@ export const createPost = async (req: Request, res: Response) => {
         isUseCase: isUseCase || false,
         linkedEntityType,
         linkedEntityId,
+        campaignId: resolvedCampaignId,
         ownerId,
         authorId,
         status: Status.OPEN,
@@ -109,6 +120,7 @@ export const getFeed = async (req: Request, res: Response) => {
     authorId: query.authorId,
     search: query.search,
     needResponse: query.needResponse,
+    campaignId: query.campaignId,
     viewerId: req.user!.id,
   });
 
@@ -138,6 +150,7 @@ export const getPost = async (req: Request, res: Response) => {
       attachments: true,
       department: { select: { id: true, name: true, slug: true } },
       workflowMetrics: { select: { slaStatus: true, aiSummaryCache: true } },
+      campaign: { select: { id: true, title: true, status: true, endsAt: true } },
       _count: { select: { comments: { where: { parentId: null } }, votes: true } },
       votes: { where: { userId: req.user!.id }, select: { userId: true } },
     },

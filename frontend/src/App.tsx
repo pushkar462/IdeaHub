@@ -15,6 +15,9 @@ import RoleManagementPage from '@/pages/RoleManagementPage';
 import AdminLoopHealthPage from '@/pages/AdminLoopHealthPage';
 import AdminSectionOwnersPage from '@/pages/AdminSectionOwnersPage';
 import AdminKbSweepPage from '@/pages/AdminKbSweepPage';
+import AdminCampaignsPage from '@/pages/AdminCampaignsPage';
+import CampaignsPage from '@/pages/CampaignsPage';
+import CampaignDetailPage from '@/pages/CampaignDetailPage';
 
 const App: React.FC = () => (
   <>
@@ -39,6 +42,9 @@ const App: React.FC = () => (
           <Route path="/admin/loop-health"    element={<AdminLoopHealthPage />} />
           <Route path="/admin/section-owners" element={<AdminSectionOwnersPage />} />
           <Route path="/admin/kb-sweep"       element={<AdminKbSweepPage />} />
+          <Route path="/admin/campaigns"      element={<AdminCampaignsPage />} />
+          <Route path="/campaigns"            element={<CampaignsPage />} />
+          <Route path="/campaigns/:id"        element={<CampaignDetailPage />} />
         </Route>
       </Route>
 

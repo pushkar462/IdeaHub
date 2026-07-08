@@ -13,6 +13,7 @@ import {
   Activity,
   Users,
   BookOpen,
+  Megaphone,
   LogOut,
   X
 } from 'lucide-react';
@@ -20,16 +21,18 @@ import {
 const NAV = [
   { to: '/dashboard',     icon: Home,       label: 'Dashboard' },
   { to: '/feed',          icon: LayoutList, label: 'Board' },
+  { to: '/campaigns',     icon: Megaphone,  label: 'Campaigns' },
   { to: '/archive',       icon: Archive,    label: 'Archive' },
   { to: '/notifications', icon: Bell,       label: 'Notifications' },
   { to: '/profile',       icon: UserIcon,   label: 'My contributions' },
 ];
 
 const ADMIN_NAV = [
-  { to: '/admin/loop-health',    icon: Activity, label: 'Loop health'    },
-  { to: '/admin/section-owners', icon: Users,    label: 'Section owners' },
-  { to: '/admin/kb-sweep',       icon: BookOpen, label: 'KB sweep'       },
-  { to: '/admin/roles',          icon: Shield,   label: 'Role Management' },
+  { to: '/admin/loop-health',    icon: Activity,  label: 'Loop health'     },
+  { to: '/admin/section-owners', icon: Users,     label: 'Section owners'  },
+  { to: '/admin/kb-sweep',       icon: BookOpen,  label: 'KB sweep'        },
+  { to: '/admin/campaigns',      icon: Megaphone, label: 'Manage campaigns' },
+  { to: '/admin/roles',          icon: Shield,    label: 'Role Management' },
 ];
 
 interface SidebarProps {

@@ -11,6 +11,7 @@ interface PostFilters {
   ownerId?: number;
   authorId?: number;
   needResponse?: boolean;
+  campaignId?: number;
 }
 
 interface PostStats {

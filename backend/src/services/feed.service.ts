@@ -48,8 +48,9 @@ export class FeedService {
     search?: string;
     needResponse?: boolean;
     viewerId?: number;
+    campaignId?: number;
   }): Promise<PaginatedFeedResult> {
-    const { cursor: nextCursor, limit = 20, type, section, status, ownerId, authorId, departmentId, search, needResponse, viewerId } = params;
+    const { cursor: nextCursor, limit = 20, type, section, status, ownerId, authorId, departmentId, search, needResponse, viewerId, campaignId } = params;
 
     const cursorObj = nextCursor ? decodeCursor(nextCursor) : undefined;
     if (nextCursor && !cursorObj) throw new AppError('Invalid nextCursor format', 400);
@@ -66,6 +67,7 @@ export class FeedService {
     if (ownerId) where.ownerId = ownerId;
     if (authorId) where.authorId = authorId;
     if (departmentId) where.departmentId = departmentId;
+    if (campaignId) where.campaignId = campaignId;
     if (needResponse) {
       // "Open / needs response" — OPEN + never acknowledged by an owner
       where.status = 'OPEN';
@@ -122,6 +124,9 @@ export class FeedService {
           },
           workflowMetrics: {
             select: { slaStatus: true },
+          },
+          campaign: {
+            select: { id: true, title: true, status: true },
           },
           _count: {
             select: { comments: true, reactions: true, votes: true },

@@ -46,6 +46,8 @@ export interface Post {
   linkedEntityType?: 'BILL' | 'CASE' | 'PARTNER';
   linkedEntityId?: string;
   buildIssueUrl?: string | null;
+  campaignId?: number | null;
+  campaign?: { id: number; title: string; status: 'ACTIVE' | 'CLOSED' } | null;
   acknowledgedAt?: string;
   createdAt: string;
   updatedAt: string;
