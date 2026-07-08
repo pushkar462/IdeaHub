@@ -22,6 +22,11 @@ export const updatePostStatusSchema = z.object({
     assigneeId: z.number().int().positive().optional().nullable(),
     resolution: z.enum(['ANSWERED', 'FIXED', 'APPROVED', 'PARKED', 'DECLINED', 'DUPLICATE', 'RULE_DECIDED']).optional(),
     resolutionReason: z.string().optional(),
+    // Handbook C6: optional GitHub-issue handoff link — validated as URL when present.
+    buildIssueUrl: z.string().url('Must be a valid URL').optional().nullable(),
+    // Handbook D2: when resolving a Question, the owner can post the canonical
+    // answer inline. It becomes a comment with isCanonical=true.
+    canonicalAnswer: z.string().min(1).max(5000).optional(),
   }).strict()
 });
 

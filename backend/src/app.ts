@@ -12,6 +12,7 @@ import archiveRoutes from './routes/archive.routes';
 import userRoutes from './routes/user.routes';
 import intelligenceRoutes from './routes/v1/intelligence.route';
 import departmentRoutes from './routes/v1/department.route';
+import adminRoutes from './routes/admin.routes';
 import { errorHandler } from './middleware/error.middleware';
 import { tracingMiddleware } from './middleware/tracing.middleware';
 import { config } from './config/env.config';
@@ -50,6 +51,7 @@ app.use('/api/archive', archiveRoutes);
 app.use('/api/intelligence', intelligenceRoutes);
 app.use('/api/departments', departmentRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Health check
 app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { X } from 'lucide-react';
+import { X, ExternalLink } from 'lucide-react';
 import { PostType } from '@/types';
 import api from '@/api/axios';
 import { usePostStore } from '@/stores/post.store';
@@ -14,18 +14,26 @@ interface Props {
 
 const typeToResolutions: Record<PostType, string[]> = {
   QUESTION: ['ANSWERED', 'PARKED', 'DECLINED'],
-  PROBLEM: ['FIXED', 'PARKED', 'DECLINED'],
-  IDEA: ['APPROVED', 'PARKED', 'DECLINED'],
+  PROBLEM:  ['FIXED',    'PARKED', 'DECLINED'],
+  IDEA:     ['APPROVED', 'PARKED', 'DECLINED'],
 };
 
 const ResolveModal: React.FC<Props> = ({ isOpen, onClose, postId, postType }) => {
   const [resolution, setResolution] = useState('');
   const [reason, setReason] = useState('');
+  const [buildIssueUrl, setBuildIssueUrl] = useState('');
+  const [canonicalAnswer, setCanonicalAnswer] = useState('');
   const [loading, setLoading] = useState(false);
   const { fetchPost, fetchFeed } = usePostStore();
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) {
+      setResolution('');
+      setReason('');
+      setBuildIssueUrl('');
+      setCanonicalAnswer('');
+      return;
+    }
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -35,6 +43,12 @@ const ResolveModal: React.FC<Props> = ({ isOpen, onClose, postId, postType }) =>
 
   const availableResolutions = typeToResolutions[postType] || [];
   const needsReason = resolution === 'PARKED' || resolution === 'DECLINED';
+  // Handbook C6 · GitHub handoff — only relevant for Problem/Idea build outcomes.
+  const canShowBuildIssue =
+    (postType === 'PROBLEM' && resolution === 'FIXED') ||
+    (postType === 'IDEA'    && resolution === 'APPROVED');
+  // Handbook D2 · canonical answer — offered when resolving a Question as answered.
+  const canShowCanonicalAnswer = postType === 'QUESTION' && resolution === 'ANSWERED';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,6 +60,10 @@ const ResolveModal: React.FC<Props> = ({ isOpen, onClose, postId, postType }) =>
       toast.error('A reason is required for Parked or Declined resolutions');
       return;
     }
+    if (buildIssueUrl.trim()) {
+      try { new URL(buildIssueUrl.trim()); }
+      catch { toast.error('GitHub issue URL must be a valid URL'); return; }
+    }
 
     setLoading(true);
     try {
@@ -53,8 +71,10 @@ const ResolveModal: React.FC<Props> = ({ isOpen, onClose, postId, postType }) =>
         status: 'RESOLVED',
         resolution,
         resolutionReason: reason.trim() || undefined,
+        buildIssueUrl: canShowBuildIssue && buildIssueUrl.trim() ? buildIssueUrl.trim() : undefined,
+        canonicalAnswer: canShowCanonicalAnswer && canonicalAnswer.trim() ? canonicalAnswer.trim() : undefined,
       });
-      toast.success('Post resolved successfully');
+      toast.success('Post resolved');
       await fetchPost(postId, true);
       await fetchFeed();
       onClose();
@@ -72,7 +92,7 @@ const ResolveModal: React.FC<Props> = ({ isOpen, onClose, postId, postType }) =>
     >
       <div className="bg-white border border-surface-border rounded-2xl shadow-2xl w-full max-w-md animate-in flex flex-col">
         <div className="flex items-center justify-between p-5 border-b border-surface-border">
-          <h2 className="text-lg font-bold text-gray-900">Mark as Resolved</h2>
+          <h2 className="text-lg font-bold text-gray-900">Mark resolved</h2>
           <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors">
             <X size={20} />
           </button>
@@ -87,7 +107,7 @@ const ResolveModal: React.FC<Props> = ({ isOpen, onClose, postId, postType }) =>
               onChange={(e) => setResolution(e.target.value)}
               required
             >
-              <option value="" disabled>Select resolution...</option>
+              <option value="" disabled>Select resolution…</option>
               {availableResolutions.map((res) => (
                 <option key={res} value={res}>{res}</option>
               ))}
@@ -104,13 +124,49 @@ const ResolveModal: React.FC<Props> = ({ isOpen, onClose, postId, postType }) =>
                 placeholder={`Why is this ${resolution.toLowerCase()}?`}
                 required
               />
+              <p className="text-xs text-gray-500 mt-1">
+                Parked and declined always carry a one-line reason (handbook B5).
+              </p>
+            </div>
+          )}
+
+          {canShowBuildIssue && (
+            <div>
+              <label className="label flex items-center gap-2">
+                <ExternalLink size={14} /> GitHub issue URL <span className="text-gray-400 font-normal">(optional)</span>
+              </label>
+              <input
+                type="url"
+                className="input bg-gray-50 focus:bg-white"
+                placeholder="https://github.com/athwart-tech/…/issues/142"
+                value={buildIssueUrl}
+                onChange={(e) => setBuildIssueUrl(e.target.value)}
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                If the build is tracked in GitHub, paste the issue link — it will show on the resolved post.
+              </p>
+            </div>
+          )}
+
+          {canShowCanonicalAnswer && (
+            <div>
+              <label className="label">Canonical answer <span className="text-gray-400 font-normal">(optional but recommended)</span></label>
+              <textarea
+                className="input bg-gray-50 focus:bg-white min-h-[120px]"
+                value={canonicalAnswer}
+                onChange={(e) => setCanonicalAnswer(e.target.value)}
+                placeholder="A bill is not_eligible only when…"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                This becomes the pinned canonical answer at the top of the post.
+              </p>
             </div>
           )}
 
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={onClose} className="btn-ghost px-5">Cancel</button>
             <button type="submit" disabled={loading} className="btn-primary px-6 bg-green-600 hover:bg-green-700 border-green-600">
-              {loading ? 'Resolving...' : 'Resolve'}
+              {loading ? 'Resolving…' : 'Mark resolved'}
             </button>
           </div>
         </form>

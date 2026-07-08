@@ -4,60 +4,103 @@ import { Status, SLAStatus } from '@prisma/client';
 import { notificationService } from '../services/notification.service';
 
 /**
- * SLA Engine Cron Job.
- * Evaluates SLA breaches (e.g., Time to Acknowledge > 48h).
- * In a real environment, this might run every hour (0 * * * *).
+ * SLA Engine Cron Job (handbook B5 · C4).
+ *
+ * Runs hourly. Three transitions:
+ *   1. OPEN + un-acknowledged, >24h and <48h  →  HEALTHY → AT_RISK   (silent)
+ *   2. OPEN + un-acknowledged, ≥48h            →  * → BREACHED       (notify owner)
+ *   3. DISCUSSING with no status change, ≥7d   →  * → BREACHED       (notify owner)
+ *
+ * Every flip uses an `updateMany` guard so concurrent runs cannot double-fire
+ * notifications or step past a state the app already advanced.
  */
 export const startSlaCron = () => {
   cron.schedule('0 * * * *', async () => {
-    console.log('[SLA Engine] Starting SLA evaluation cron job...');
-    
+    console.log('[SLA Engine] Starting SLA evaluation cron job…');
+
     try {
-      // 1. Identify posts that are currently OPEN and have breached 48 hours.
-      // 48 hours = 48 * 60 * 60 = 172800 seconds.
-      // We check posts whose active duration + accumulated duration > 172800.
-      
-      const twoDaysAgo = new Date(Date.now() - 172800 * 1000);
-      
-      // Only pick up NEW breaches (HEALTHY → BREACHED). Anything already BREACHED
-      // has already notified the owner; the cron must not re-notify on every hourly tick.
-      const breachedMetrics = await prisma.workflowMetrics.findMany({
+      const now = Date.now();
+      const dayAgo    = new Date(now - 24  * 60 * 60 * 1000);
+      const twoDaysAgo = new Date(now - 48  * 60 * 60 * 1000);
+      const sevenDaysAgo = new Date(now - 7 * 24 * 60 * 60 * 1000);
+
+      // ── 1. OPEN + un-acknowledged + 24h < age < 48h → AT_RISK ─────────────
+      const atRiskCandidates = await prisma.workflowMetrics.findMany({
         where: {
           slaStatus: SLAStatus.HEALTHY,
           post: {
             status: Status.OPEN,
             acknowledgedAt: null,
           },
-          currentStatusStartedAt: {
-            lt: twoDaysAgo
-          }
+          currentStatusStartedAt: { lt: dayAgo, gte: twoDaysAgo },
         },
-        include: { post: true }
+        select: { id: true, post: { select: { id: true } } },
       });
+      let atRiskFlipped = 0;
+      for (const m of atRiskCandidates) {
+        const flipped = await prisma.workflowMetrics.updateMany({
+          where: { id: m.id, slaStatus: SLAStatus.HEALTHY },
+          data:  { slaStatus: SLAStatus.AT_RISK },
+        });
+        atRiskFlipped += flipped.count;
+      }
+      if (atRiskFlipped > 0) console.log(`[SLA Engine] AT_RISK: ${atRiskFlipped}`);
 
-      if (breachedMetrics.length > 0) {
-        console.log(`[SLA Engine] Found ${breachedMetrics.length} newly breached posts.`);
-
-        for (const metric of breachedMetrics) {
-          // Atomically flip HEALTHY → BREACHED. updateMany with the guard on slaStatus
-          // means a concurrent cron/handler cannot double-fire the notification.
-          const flipped = await prisma.workflowMetrics.updateMany({
-            where: { id: metric.id, slaStatus: SLAStatus.HEALTHY },
-            data: { slaStatus: SLAStatus.BREACHED }
-          });
-          if (flipped.count === 0) continue; // someone else flipped it first
-
-          if (metric.post.ownerId) {
-            await notificationService.createNotification({
-              userId: metric.post.ownerId,
-              type: 'MENTION',
-              actorId: metric.post.authorId,
-              postId: metric.post.id,
-            }, undefined).catch(e => console.warn('Failed to send SLA breach notification:', e));
-          }
+      // ── 2. OPEN + un-acknowledged ≥ 48h → BREACHED (notify) ──────────────
+      const breachedOpen = await prisma.workflowMetrics.findMany({
+        where: {
+          slaStatus: { in: [SLAStatus.HEALTHY, SLAStatus.AT_RISK] },
+          post: {
+            status: Status.OPEN,
+            acknowledgedAt: null,
+          },
+          currentStatusStartedAt: { lt: twoDaysAgo },
+        },
+        include: { post: true },
+      });
+      for (const m of breachedOpen) {
+        const flipped = await prisma.workflowMetrics.updateMany({
+          where: { id: m.id, slaStatus: { in: [SLAStatus.HEALTHY, SLAStatus.AT_RISK] } },
+          data:  { slaStatus: SLAStatus.BREACHED },
+        });
+        if (flipped.count === 0) continue;
+        if (m.post.ownerId) {
+          await notificationService
+            .createNotification(
+              { userId: m.post.ownerId, type: 'MENTION', actorId: m.post.authorId, postId: m.post.id },
+              undefined,
+            )
+            .catch((e) => console.warn('SLA breach notify failed:', e));
         }
       }
-      
+      if (breachedOpen.length) console.log(`[SLA Engine] BREACHED (open ≥48h): ${breachedOpen.length}`);
+
+      // ── 3. DISCUSSING with no status change ≥ 7d → BREACHED (notify) ─────
+      const breachedDiscussing = await prisma.workflowMetrics.findMany({
+        where: {
+          slaStatus: { in: [SLAStatus.HEALTHY, SLAStatus.AT_RISK] },
+          post: { status: Status.DISCUSSING },
+          currentStatusStartedAt: { lt: sevenDaysAgo },
+        },
+        include: { post: true },
+      });
+      for (const m of breachedDiscussing) {
+        const flipped = await prisma.workflowMetrics.updateMany({
+          where: { id: m.id, slaStatus: { in: [SLAStatus.HEALTHY, SLAStatus.AT_RISK] } },
+          data:  { slaStatus: SLAStatus.BREACHED },
+        });
+        if (flipped.count === 0) continue;
+        if (m.post.ownerId) {
+          await notificationService
+            .createNotification(
+              { userId: m.post.ownerId, type: 'MENTION', actorId: m.post.authorId, postId: m.post.id },
+              undefined,
+            )
+            .catch((e) => console.warn('SLA discussing-breach notify failed:', e));
+        }
+      }
+      if (breachedDiscussing.length) console.log(`[SLA Engine] BREACHED (discussing ≥7d): ${breachedDiscussing.length}`);
+
       console.log('[SLA Engine] Evaluation complete.');
     } catch (error) {
       console.error('[SLA Engine] Error during evaluation:', error);

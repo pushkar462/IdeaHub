@@ -12,6 +12,7 @@ import NotificationsPage from '@/pages/NotificationsPage';
 import ProfilePage from '@/pages/ProfilePage';
 import PostDetailPage from '@/pages/PostDetailPage';
 import RoleManagementPage from '@/pages/RoleManagementPage';
+import AdminLoopHealthPage from '@/pages/AdminLoopHealthPage';
 
 const App: React.FC = () => (
   <>
@@ -33,6 +34,7 @@ const App: React.FC = () => (
           <Route path="/profile/:id" element={<ProfilePage />} />
           <Route path="/post/:id" element={<PostDetailPage />} />
           <Route path="/admin/roles" element={<RoleManagementPage />} />
+          <Route path="/admin/loop-health" element={<AdminLoopHealthPage />} />
         </Route>
       </Route>
 

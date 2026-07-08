@@ -13,7 +13,7 @@ import CreatePostModal from '@/components/posts/CreatePostModal';
 import ResolveModal from '@/components/posts/ResolveModal';
 import api from '@/api/axios';
 import toast from 'react-hot-toast';
-import { ArrowLeft, Edit2, Trash2, ThumbsUp, AlertTriangle, MoreVertical, BookOpen, Sparkles } from 'lucide-react';
+import { ArrowLeft, Edit2, Trash2, ThumbsUp, AlertTriangle, MoreVertical, BookOpen, Sparkles, CheckCircle2, ExternalLink } from 'lucide-react';
 
 const PostDetailPage: React.FC = () => {
   const { id } = useParams();
@@ -97,6 +97,12 @@ const PostDetailPage: React.FC = () => {
   };
 
   const totalReactions = post.reactions?.length ?? 0;
+
+  // Handbook D2: hoist the canonical comment into a green block above the thread.
+  const canonicalComment = post.comments?.find((c) => c.isCanonical);
+  const threadComments = canonicalComment
+    ? (post.comments ?? []).filter((c) => c.id !== canonicalComment.id)
+    : (post.comments ?? []);
 
   return (
     <div className="max-w-3xl mx-auto space-y-6 pb-20">
@@ -235,6 +241,16 @@ const PostDetailPage: React.FC = () => {
             {post.resolutionReason && (
               <p className="text-sm text-gray-600 mt-2 italic">{post.resolutionReason}</p>
             )}
+            {post.buildIssueUrl && (
+              <a
+                href={post.buildIssueUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-brand-primary hover:underline"
+              >
+                <ExternalLink size={14} /> → GitHub issue
+              </a>
+            )}
           </div>
         )}
 
@@ -282,12 +298,31 @@ const PostDetailPage: React.FC = () => {
 
       <AISummary postId={post.id} initialSummary={post.workflowMetrics?.aiSummaryCache} isLocked={isLocked} />
 
+      {canonicalComment && (
+        <div className="card p-6 lg:p-8 border-l-4 border-l-green-500 bg-green-50/40">
+          <div className="flex items-center gap-2 text-sm font-bold text-green-700 mb-3">
+            <CheckCircle2 size={16} /> Canonical answer
+            {post.owner && (
+              <span className="text-xs font-medium text-gray-500">· marked by {post.owner.name}</span>
+            )}
+          </div>
+          <div className="prose max-w-none text-gray-800 whitespace-pre-wrap leading-relaxed">
+            <RenderMentionText content={canonicalComment.content} />
+          </div>
+          <div className="mt-3 flex items-center gap-2 text-xs text-gray-500">
+            <Avatar user={canonicalComment.author} size="sm" />
+            <span className="font-semibold text-gray-700">{canonicalComment.author?.name}</span>
+            <span>· {new Date(canonicalComment.createdAt).toLocaleString()}</span>
+          </div>
+        </div>
+      )}
+
       <div className="card p-6 lg:p-8">
         <div className="flex items-center justify-between mb-6 gap-3 flex-wrap">
           <h3 className="text-lg font-bold text-gray-900 flex items-center gap-3">
             Discussion
             <span className="bg-gray-100 text-gray-600 text-xs px-2.5 py-1 rounded-full font-bold">
-              {post.comments?.length ?? 0}
+              {threadComments.length}
             </span>
           </h3>
           {(isOwner || isFounder) && post.type === 'QUESTION' && (post.status === 'OPEN' || post.status === 'DISCUSSING') && (
@@ -303,8 +338,9 @@ const PostDetailPage: React.FC = () => {
           )}
         </div>
         <CommentThread
-          comments={post.comments ?? []}
+          comments={threadComments}
           postId={post.id}
+          postOwnerId={post.ownerId}
           onRefresh={() => fetchPost(post.id, true)}
           isLocked={isLocked}
           draftSeed={draftSeed}

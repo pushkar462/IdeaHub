@@ -45,6 +45,7 @@ export interface Post {
   isUseCase: boolean;
   linkedEntityType?: 'BILL' | 'CASE' | 'PARTNER';
   linkedEntityId?: string;
+  buildIssueUrl?: string | null;
   acknowledgedAt?: string;
   createdAt: string;
   updatedAt: string;

@@ -39,6 +39,8 @@ const ProfilePage: React.FC = () => {
   }
   const [contributions, setContributions] = useState<Contributions | null>(null);
   const [contribLoading, setContribLoading] = useState(false);
+  const [since, setSince] = useState<'all' | '30d' | '7d'>('all');
+  const [activeTab, setActiveTab] = useState<'posts' | 'contributions'>('posts');
 
   const isOwnProfile = !id || Number(id) === currentUser?.id;
   const canViewContributions =
@@ -101,9 +103,12 @@ const ProfilePage: React.FC = () => {
       setContributions(null);
       return;
     }
+    const params: Record<string, string> = {};
+    if (since === '30d') params.since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    if (since === '7d')  params.since = new Date(Date.now() -  7 * 24 * 60 * 60 * 1000).toISOString();
     setContribLoading(true);
     api
-      .get(`/users/${profileUser.id}/contributions`)
+      .get(`/users/${profileUser.id}/contributions`, { params })
       .then((res) => {
         // Backend wraps in { data: ... }; api layer may or may not unwrap
         const payload = res.data?.data ?? res.data;
@@ -111,7 +116,7 @@ const ProfilePage: React.FC = () => {
       })
       .catch(() => setContributions(null))
       .finally(() => setContribLoading(false));
-  }, [profileUser, canViewContributions]);
+  }, [profileUser, canViewContributions, since]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -198,47 +203,77 @@ const ProfilePage: React.FC = () => {
 
       {!editing && (
         <div className="space-y-4">
-          <h2 className="text-xl font-bold text-gray-900">Recent Posts</h2>
-          {postsLoading ? (
-            <Loader />
-          ) : posts.length > 0 ? (
-            posts.map(post => <PostCard key={post.id} post={post as any} />)
-          ) : (
-            <div className="text-gray-500 text-center py-6 bg-white rounded-lg border border-surface-border">
-              This user hasn't posted anything yet.
+          <div className="flex items-center justify-between border-b border-surface-border">
+            <div className="flex gap-1">
+              <button
+                onClick={() => setActiveTab('posts')}
+                className={`text-sm font-semibold px-4 py-2 border-b-2 -mb-px transition-colors ${
+                  activeTab === 'posts'
+                    ? 'border-brand-primary text-brand-primary'
+                    : 'border-transparent text-gray-500 hover:text-gray-800'
+                }`}
+              >
+                Recent posts
+              </button>
+              {canViewContributions && (
+                <button
+                  onClick={() => setActiveTab('contributions')}
+                  className={`text-sm font-semibold px-4 py-2 border-b-2 -mb-px transition-colors ${
+                    activeTab === 'contributions'
+                      ? 'border-brand-primary text-brand-primary'
+                      : 'border-transparent text-gray-500 hover:text-gray-800'
+                  }`}
+                >
+                  Contributions
+                </button>
+              )}
             </div>
-          )}
-        </div>
-      )}
+            {activeTab === 'contributions' && canViewContributions && (
+              <div className="flex bg-gray-100 p-1 rounded-lg text-[11px] font-semibold">
+                {(['all', '30d', '7d'] as const).map((w) => (
+                  <button
+                    key={w}
+                    onClick={() => setSince(w)}
+                    className={`px-2.5 py-1 rounded-md transition-colors ${
+                      since === w ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-800'
+                    }`}
+                  >
+                    {w === 'all' ? 'All time' : `Last ${w}`}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
 
-      {!editing && canViewContributions && (
-        <div className="space-y-4">
-          <h2 className="text-xl font-bold text-gray-900">Contributions</h2>
-          <p className="text-xs text-gray-500 -mt-2">
-            A factual record — no scores, no ranking. Visible to {isOwnProfile ? 'you' : 'admins and the founder'}.
-          </p>
-          {contribLoading || !contributions ? (
-            <Loader />
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <ContribPanel
-                label="Posts I raised"
-                items={contributions.raised}
-                count={contributions.counts.raised}
-                emptyLabel="No posts raised yet."
-              />
-              <ContribPanel
-                label="Posts I helped resolve"
-                items={contributions.resolved}
-                count={contributions.counts.resolved}
-                emptyLabel="No resolutions credited yet."
-              />
-              <ContribPanel
-                label="Questions I answered"
-                items={contributions.answered}
-                count={contributions.counts.answered}
-                emptyLabel="No answers credited yet."
-              />
+          {activeTab === 'posts' && (
+            postsLoading ? (
+              <Loader />
+            ) : posts.length > 0 ? (
+              <div className="space-y-4">
+                {posts.map((post) => <PostCard key={post.id} post={post as any} />)}
+              </div>
+            ) : (
+              <div className="text-gray-500 text-center py-6 bg-white rounded-lg border border-surface-border">
+                {isOwnProfile ? "You haven't posted anything yet." : "This user hasn't posted anything yet."}
+              </div>
+            )
+          )}
+
+          {activeTab === 'contributions' && canViewContributions && (
+            <div className="space-y-4">
+              <p className="text-xs text-gray-500">
+                Handbook Section 10 · factual record, no scores, no ranking. Visible to{' '}
+                {isOwnProfile ? 'you' : 'admins and the founder'}.
+              </p>
+              {contribLoading || !contributions ? (
+                <Loader />
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <ContribPanel label="Posts raised"          items={contributions.raised}   count={contributions.counts.raised}   emptyLabel="No posts raised in this window." />
+                  <ContribPanel label="Posts helped resolve"  items={contributions.resolved} count={contributions.counts.resolved} emptyLabel="No resolutions credited in this window." />
+                  <ContribPanel label="Questions answered"    items={contributions.answered} count={contributions.counts.answered} emptyLabel="No answers credited in this window." />
+                </div>
+              )}
             </div>
           )}
         </div>

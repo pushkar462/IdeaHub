@@ -8,8 +8,9 @@ const PAGE_TITLES: Record<string, string> = {
   '/feed':          'Loop',
   '/archive':       'Memory Archive',
   '/notifications': 'Notifications',
-  '/profile':       'Profile',
-  '/admin/roles':   'Role Management',
+  '/profile':       'My contributions',
+  '/admin/roles':       'Role Management',
+  '/admin/loop-health': 'Loop health',
 };
 
 interface TopbarProps {

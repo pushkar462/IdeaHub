@@ -115,6 +115,9 @@ model Post {
   acknowledgedAt   DateTime?
   linkedEntityType String?
   linkedEntityId   String?
+  // Handbook C6: when a Problem/Idea resolves to build work, the resolver
+  // records the GitHub issue URL that will track execution.
+  buildIssueUrl    String?
   // Handbook C4: generated tsvector column + GIN index for search-first.
   // Managed by migration 20260709120000_search_vector_gin — accessed only via raw SQL.
   searchVector    Unsupported("tsvector")?

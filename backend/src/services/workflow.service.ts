@@ -16,6 +16,7 @@ export class WorkflowService {
     payload?: {
       resolution?: Resolution;
       resolutionReason?: string;
+      buildIssueUrl?: string | null;
     }
   ) {
     // 1. Fetch current status
@@ -69,8 +70,15 @@ export class WorkflowService {
       }
       dataToUpdate.resolution = payload.resolution;
       dataToUpdate.resolutionReason = payload.resolutionReason || null;
-      
-      auditActions.push({ actionType: 'POST_RESOLVED', metadata: { resolution: payload.resolution } });
+      // Handbook C6: capture the GitHub handoff URL on Problem/Idea resolutions.
+      if (payload.buildIssueUrl !== undefined && (payload.resolution === Resolution.FIXED || payload.resolution === Resolution.APPROVED)) {
+        dataToUpdate.buildIssueUrl = payload.buildIssueUrl || null;
+      }
+
+      auditActions.push({
+        actionType: 'POST_RESOLVED',
+        metadata: { resolution: payload.resolution, buildIssueUrl: dataToUpdate.buildIssueUrl ?? undefined },
+      });
 
     } else if (currentStatus === Status.OPEN && newStatus === Status.RESOLVED) {
       // Fast-close
@@ -90,9 +98,15 @@ export class WorkflowService {
       // Ownership claim handled atomically below.
       dataToUpdate.resolution = payload.resolution;
       dataToUpdate.resolutionReason = payload.resolutionReason || null;
+      if (payload.buildIssueUrl !== undefined && (payload.resolution === Resolution.FIXED || payload.resolution === Resolution.APPROVED)) {
+        dataToUpdate.buildIssueUrl = payload.buildIssueUrl || null;
+      }
 
       auditActions.push({ actionType: 'POST_ACKNOWLEDGED', metadata: { note: 'fast-close' } });
-      auditActions.push({ actionType: 'POST_RESOLVED', metadata: { resolution: payload.resolution } });
+      auditActions.push({
+        actionType: 'POST_RESOLVED',
+        metadata: { resolution: payload.resolution, buildIssueUrl: dataToUpdate.buildIssueUrl ?? undefined },
+      });
 
     } else if (currentStatus === Status.RESOLVED && newStatus === Status.OPEN) {
       // Re-open

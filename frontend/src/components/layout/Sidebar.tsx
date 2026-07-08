@@ -3,15 +3,16 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/auth.store';
 import { useNotificationStore } from '@/stores/notification.store';
 import Avatar from '@/components/shared/Avatar';
-import { 
-  Home, 
-  LayoutList, 
-  Archive, 
-  Bell, 
-  User as UserIcon, 
-  Shield, 
+import {
+  Home,
+  LayoutList,
+  Archive,
+  Bell,
+  User as UserIcon,
+  Shield,
+  Activity,
   LogOut,
-  X 
+  X
 } from 'lucide-react';
 
 const NAV = [
@@ -19,10 +20,13 @@ const NAV = [
   { to: '/feed',          icon: LayoutList, label: 'Board' },
   { to: '/archive',       icon: Archive,    label: 'Archive' },
   { to: '/notifications', icon: Bell,       label: 'Notifications' },
-  { to: '/profile',       icon: UserIcon,   label: 'Profile' },
+  { to: '/profile',       icon: UserIcon,   label: 'My contributions' },
 ];
 
-const ADMIN_NAV = { to: '/admin/roles', icon: Shield, label: 'Role Management' };
+const ADMIN_NAV = [
+  { to: '/admin/loop-health', icon: Activity, label: 'Loop health' },
+  { to: '/admin/roles',       icon: Shield,   label: 'Role Management' },
+];
 
 interface SidebarProps {
   isOpen: boolean;
@@ -34,7 +38,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const { unreadCount } = useNotificationStore();
   const navigate = useNavigate();
   const isAdmin = user?.role === 'FOUNDER' || user?.role === 'ADMIN';
-  const navItems = isAdmin ? [...NAV, ADMIN_NAV] : NAV;
+  const navItems = isAdmin ? [...NAV, ...ADMIN_NAV] : NAV;
 
   const handleLogout = () => {
     logout();

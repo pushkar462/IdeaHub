@@ -76,6 +76,16 @@ router.get('/:id/contributions', authenticate, async (req: Request, res: Respons
     throw new AppError('Contributions are private to the user, Admin, and Founder', StatusCodes.FORBIDDEN, 'FORBIDDEN');
   }
 
+  // Handbook Section 10: factual layer. Optional `since` narrows the window
+  // (e.g. weekly-digest recognition). ISO date; missing/invalid → all-time.
+  let sinceDate: Date | undefined;
+  const sinceRaw = typeof req.query.since === 'string' ? req.query.since : undefined;
+  if (sinceRaw) {
+    const parsed = new Date(sinceRaw);
+    if (!isNaN(parsed.getTime())) sinceDate = parsed;
+  }
+  const CONTRIB_LIMIT = 100;
+
   const postSelect = {
     id: true,
     postNumber: true,
@@ -90,8 +100,12 @@ router.get('/:id/contributions', authenticate, async (req: Request, res: Respons
 
   const [raised, resolved, answeredPostIdsRaw] = await Promise.all([
     prisma.post.findMany({
-      where: { authorId: id },
+      where: {
+        authorId: id,
+        ...(sinceDate && { createdAt: { gte: sinceDate } }),
+      },
       orderBy: { createdAt: 'desc' },
+      take: CONTRIB_LIMIT,
       select: postSelect,
     }),
     prisma.post.findMany({
@@ -99,8 +113,10 @@ router.get('/:id/contributions', authenticate, async (req: Request, res: Respons
         ownerId: id,
         status: 'RESOLVED',
         resolution: { in: ['ANSWERED', 'FIXED', 'APPROVED', 'RULE_DECIDED'] },
+        ...(sinceDate && { updatedAt: { gte: sinceDate } }),
       },
       orderBy: { updatedAt: 'desc' },
+      take: CONTRIB_LIMIT,
       select: postSelect,
     }),
     prisma.comment.findMany({
@@ -110,10 +126,12 @@ router.get('/:id/contributions', authenticate, async (req: Request, res: Respons
           status: 'RESOLVED',
           resolution: 'ANSWERED',
           NOT: { authorId: id },
+          ...(sinceDate && { updatedAt: { gte: sinceDate } }),
         },
       },
       select: { postId: true },
       distinct: ['postId'],
+      take: CONTRIB_LIMIT,
     }),
   ]);
 
@@ -135,6 +153,8 @@ router.get('/:id/contributions', authenticate, async (req: Request, res: Respons
       resolved: resolved.length,
       answered: answered.length,
     },
+    since: sinceDate ? sinceDate.toISOString() : null,
+    limit: CONTRIB_LIMIT,
   });
 });
 

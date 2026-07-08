@@ -157,7 +157,7 @@ import { eventBus, INTERNAL_EVENTS } from '../services/events/internal.emitter';
 /* ---------- UPDATE POST STATUS (AND ASSIGNEE) ---------- */
 export const updateStatus = async (req: Request, res: Response) => {
   const id = Number(req.params.id);
-  const { status, assigneeId } = req.body;
+  const { status, assigneeId, resolution, resolutionReason, buildIssueUrl, canonicalAnswer } = req.body;
   const actorId = req.user!.id;
 
   if (isNaN(id)) {
@@ -167,7 +167,7 @@ export const updateStatus = async (req: Request, res: Response) => {
   // Fetch current post to check assignment idempotency
   const currentPost = await prisma.post.findUnique({
     where: { id },
-    select: { assigneeId: true, departmentId: true }
+    select: { assigneeId: true, departmentId: true, type: true }
   });
 
   if (!currentPost) {
@@ -179,7 +179,23 @@ export const updateStatus = async (req: Request, res: Response) => {
   // 1. Guarded Workflow Transition
   if (status) {
     // This will throw if the transition is mathematically invalid
-    post = await workflowService.transitionStatus(id, status as Status, actorId);
+    post = await workflowService.transitionStatus(id, status as Status, actorId, {
+      resolution,
+      resolutionReason,
+      buildIssueUrl,
+    });
+
+    // Handbook D2: when resolving a Question with a canonical answer inline,
+    // create the comment and mark it canonical so PostDetailPage can hoist it.
+    if (canonicalAnswer && status === 'RESOLVED' && currentPost.type === 'QUESTION') {
+      const created = await prisma.comment.create({
+        data: { postId: id, authorId: actorId, content: canonicalAnswer, isCanonical: true },
+      });
+      // Best-effort mention/notification processing; failures shouldn't fail the resolve.
+      mentionService
+        .processMentions({ text: canonicalAnswer, authorId: actorId, commentId: created.id })
+        .catch((err) => console.error('Mention processing failed for canonical answer', err));
+    }
   }
 
   // 2. Assigment Logic
@@ -463,5 +479,116 @@ export const getSlaHealth = async (req: Request, res: Response) => {
     },
     avgTimeToAcknowledgeMs,
     sampleSize: ackDeltas.length,
+  });
+};
+
+/* ---------- GET LOOP HEALTH (Admin dashboard) ---------- */
+// Handbook C4 · Admin dashboard. Extends /sla-health with time-to-resolve,
+// need-response count, a 30d black-hole rate, and a per-section breakdown.
+export const getLoopHealth = async (req: Request, res: Response) => {
+  const role = req.user!.role;
+  if (role !== 'ADMIN' && role !== 'FOUNDER') {
+    throw new AppError('Loop health dashboard is restricted to Admin/Founder', StatusCodes.FORBIDDEN, 'FORBIDDEN');
+  }
+
+  const ACK_WINDOW_MS = 48 * 60 * 60 * 1000;
+  const now = Date.now();
+  const ackCutoff  = new Date(now - ACK_WINDOW_MS);
+  const thirtyDaysAgo = new Date(now - 30 * 24 * 60 * 60 * 1000);
+
+  const [
+    openTotal,
+    needResponseCount,
+    blackHoleCount,
+    blackHole30d,
+    open30d,
+    statusHealthy,
+    statusAtRisk,
+    statusBreached,
+    ackSample,
+    resolvedSample,
+    sectionCounts,
+    sectionOpenCounts,
+    sectionBreachedCounts,
+  ] = await Promise.all([
+    prisma.post.count({ where: { status: Status.OPEN } }),
+    prisma.post.count({ where: { status: Status.OPEN, acknowledgedAt: null } }),
+    prisma.post.count({ where: { status: Status.OPEN, acknowledgedAt: null, createdAt: { lt: ackCutoff } } }),
+    // 30-day rolling: breached (as recorded by cron) among posts opened in the window
+    prisma.post.count({
+      where: { createdAt: { gte: thirtyDaysAgo }, workflowMetrics: { slaStatus: 'BREACHED' } },
+    }),
+    prisma.post.count({ where: { createdAt: { gte: thirtyDaysAgo } } }),
+    prisma.workflowMetrics.count({ where: { slaStatus: 'HEALTHY' } }),
+    prisma.workflowMetrics.count({ where: { slaStatus: 'AT_RISK' } }),
+    prisma.workflowMetrics.count({ where: { slaStatus: 'BREACHED' } }),
+    prisma.post.findMany({
+      where: { acknowledgedAt: { not: null } },
+      select: { createdAt: true, acknowledgedAt: true },
+      orderBy: { acknowledgedAt: 'desc' },
+      take: 500,
+    }),
+    prisma.workflowMetrics.findMany({
+      where: { completedAt: { not: null }, updatedAt: { gte: thirtyDaysAgo } },
+      select: { createdAt: true, completedAt: true, post: { select: { createdAt: true } } },
+      orderBy: { completedAt: 'desc' },
+      take: 500,
+    }),
+    prisma.post.groupBy({ by: ['section'], _count: { _all: true } }),
+    prisma.post.groupBy({ by: ['section'], where: { status: Status.OPEN }, _count: { _all: true } }),
+    prisma.post.groupBy({
+      by: ['section'],
+      where: { workflowMetrics: { slaStatus: 'BREACHED' } },
+      _count: { _all: true },
+    }),
+  ]);
+
+  const ackDeltas = ackSample
+    .map((p) => (p.acknowledgedAt ? p.acknowledgedAt.getTime() - p.createdAt.getTime() : null))
+    .filter((n): n is number => n !== null && n >= 0);
+  const avgTimeToAcknowledgeMs = ackDeltas.length
+    ? Math.round(ackDeltas.reduce((s, n) => s + n, 0) / ackDeltas.length)
+    : null;
+
+  const resolveDeltas = resolvedSample
+    .map((m) =>
+      m.completedAt && m.post ? m.completedAt.getTime() - m.post.createdAt.getTime() : null,
+    )
+    .filter((n): n is number => n !== null && n >= 0);
+  const avgTimeToResolveMs = resolveDeltas.length
+    ? Math.round(resolveDeltas.reduce((s, n) => s + n, 0) / resolveDeltas.length)
+    : null;
+
+  const blackHoleRate     = openTotal > 0 ? blackHoleCount / openTotal : 0;
+  const blackHoleRate30d  = open30d > 0 ? blackHole30d / open30d : 0;
+
+  const openBySection = new Map(sectionOpenCounts.map((r) => [r.section, r._count._all]));
+  const breachedBySection = new Map(sectionBreachedCounts.map((r) => [r.section, r._count._all]));
+  const perSection = sectionCounts
+    .map((r) => ({
+      section: r.section,
+      total: r._count._all,
+      open: openBySection.get(r.section) ?? 0,
+      breached: breachedBySection.get(r.section) ?? 0,
+    }))
+    .sort((a, b) => b.open - a.open);
+
+  return successResponse(res, 'Loop health retrieved', {
+    openTotal,
+    needResponseCount,
+    blackHoleCount,
+    blackHoleRate,
+    blackHoleRate30d,
+    slaStatusCounts: {
+      HEALTHY: statusHealthy,
+      AT_RISK: statusAtRisk,
+      BREACHED: statusBreached,
+    },
+    avgTimeToAcknowledgeMs,
+    avgTimeToResolveMs,
+    ackSampleSize: ackDeltas.length,
+    resolveSampleSize: resolveDeltas.length,
+    perSection,
+    generatedAt: new Date().toISOString(),
   });
 };
