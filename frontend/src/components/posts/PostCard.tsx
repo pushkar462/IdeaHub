@@ -5,17 +5,25 @@ import { useAuthStore } from '@/stores/auth.store';
 import Avatar from '@/components/shared/Avatar';
 import StatusBadge from './StatusBadge';
 import AttachmentList from './AttachmentList';
-import { MoreVertical, Edit2, Trash2, MessageSquare, ThumbsUp, AlertTriangle } from 'lucide-react';
+import {
+  MoreVertical, Edit2, Trash2, MessageSquare, ThumbsUp,
+  AlertTriangle, HelpCircle, Lightbulb, Megaphone,
+} from 'lucide-react';
 
-const typeColors: Record<string, string> = {
-  BUG:         'bg-transparent text-red-500 border-red-500',
-  IMPROVEMENT: 'bg-transparent text-indigo-500 border-indigo-500',
-  SUGGESTION:  'bg-transparent text-teal-500 border-teal-500',
-  FEATURE:     'bg-transparent text-violet-500 border-violet-500',
-  IDEA:        'bg-transparent text-brand-primary border-brand-primary', 
-  DISCUSSION:  'bg-transparent text-sky-500 border-sky-500',
-  PROBLEM:     'bg-transparent text-orange-500 border-orange-500',
-  QUESTION:    'bg-transparent text-purple-500 border-purple-500',
+// Handbook + redesign: exactly one color per type. Left border is the visual
+// grouping cue; the badge itself is a quiet pill that echoes the same hue.
+const typeAccent: Record<string, { hex: string; label: string; icon: any }> = {
+  QUESTION: { hex: '#8018de', label: 'Question', icon: HelpCircle    },
+  PROBLEM:  { hex: '#f15d24', label: 'Problem',  icon: AlertTriangle },
+  IDEA:     { hex: '#fec530', label: 'Idea',     icon: Lightbulb     },
+};
+
+// SLA dot color: green healthy / amber at-risk / red breached. Tooltip labels
+// the state for accessibility — never color-alone.
+const slaColor: Record<string, { hex: string; label: string }> = {
+  HEALTHY:  { hex: '#2ac25d', label: 'On track — within SLA'   },
+  AT_RISK:  { hex: '#fec530', label: 'At risk — nearing SLA'   },
+  BREACHED: { hex: '#f15d24', label: 'Breached — past SLA'     },
 };
 
 interface Props {
@@ -31,48 +39,59 @@ const PostCard: React.FC<Props> = ({ post, onReact, onEdit, onDelete }) => {
   const menuRef = useRef<HTMLDivElement>(null);
 
   const isAuthor = user?.id === post.authorId;
-  const isAdmin = user?.role === 'FOUNDER' || user?.role === 'ADMIN';
-  const canEdit = isAuthor;
+  const isAdmin  = user?.role === 'FOUNDER' || user?.role === 'ADMIN';
+  const canEdit   = isAuthor;
   const canDelete = isAuthor || isAdmin;
-  const showMenu = canEdit || canDelete;
+  const showMenu  = canEdit || canDelete;
 
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMenuOpen(false);
-      }
+    const onDoc = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
     };
-    if (menuOpen) document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    if (menuOpen) document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
   }, [menuOpen]);
 
   const totalReactions = post.reactionCount ?? post.reactions?.length ?? post._count?.reactions ?? 0;
-  const commentCount = post.replyCount ?? post._count?.comments ?? post.comments?.length ?? 0;
+  const commentCount   = post.replyCount ?? post._count?.comments ?? post.comments?.length ?? 0;
+  const type           = typeAccent[post.type] ?? { hex: '#737373', label: post.type, icon: HelpCircle };
+  const TypeIcon       = type.icon;
+  const sla            = post.workflowMetrics?.slaStatus ? slaColor[post.workflowMetrics.slaStatus] : null;
+  const isBreached     = post.workflowMetrics?.slaStatus === 'BREACHED';
 
   const handleDelete = () => {
     setMenuOpen(false);
-    if (confirm('Are you sure you want to delete this post?')) {
-      onDelete?.(post.id);
-    }
+    if (confirm('Delete this post? This cannot be undone.')) onDelete?.(post.id);
   };
 
   return (
-    <div className="card-interactive p-5 group">
-      <div className="flex items-start justify-between gap-3 mb-4">
-        <div className="flex items-center gap-2 flex-wrap flex-1">
-          <span className={`badge ${typeColors[post.type] ?? 'bg-transparent text-gray-500 border-gray-400'}`}>
-            {post.type?.replace('_', ' ')}
+    <div
+      className="card-interactive p-5 group relative overflow-hidden"
+      style={{ borderLeft: `3px solid ${type.hex}` }}
+    >
+      {/* ── Top row: type + section + refs + status + SLA ────────── */}
+      <div className="flex items-start justify-between gap-3 mb-3">
+        <div className="flex items-center gap-2 flex-wrap min-w-0">
+          <span
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border"
+            style={{ color: type.hex, borderColor: type.hex + '55', backgroundColor: type.hex + '10' }}
+          >
+            <TypeIcon size={11} /> {type.label}
           </span>
-          <StatusBadge status={post.status} />
+
+          <span className="text-[11px] font-mono text-gray-500">{post.postNumber || `#${post.id}`}</span>
 
           {post.section && (
-            <span className="badge bg-transparent text-[#b070f0] border-[#b070f0]">
+            <span className="text-[11px] font-medium text-gray-500 uppercase tracking-wide">
               {post.section}
             </span>
           )}
 
           {post.linkedEntityType && post.linkedEntityId && (
-            <span className="badge bg-transparent text-indigo-500 border-indigo-500">
+            <span
+              className="text-[11px] font-mono text-brand-primary bg-brand-light/50 px-1.5 py-0.5 rounded"
+              title={`Linked ${post.linkedEntityType.toLowerCase()}`}
+            >
               [{post.linkedEntityType}] {post.linkedEntityId}
             </span>
           )}
@@ -81,30 +100,25 @@ const PostCard: React.FC<Props> = ({ post, onReact, onEdit, onDelete }) => {
             <Link
               to={`/campaigns/${post.campaign.id}`}
               onClick={(e) => e.stopPropagation()}
-              className="badge bg-brand-light text-brand-primary border border-brand-primary/30 hover:bg-brand-primary/20 transition-colors"
+              className="inline-flex items-center gap-1 text-[10px] font-semibold text-brand-primary hover:underline"
               title={post.campaign.title}
             >
-              📣 {post.campaign.title.length > 24 ? post.campaign.title.slice(0, 24) + '…' : post.campaign.title}
+              <Megaphone size={10} />
+              {post.campaign.title.length > 22 ? post.campaign.title.slice(0, 22) + '…' : post.campaign.title}
             </Link>
-          )}
-
-          {post.owner && (
-            <span className="badge bg-transparent text-[#77f0ec] border-[#77f0ec] flex items-center gap-1">
-              {post.owner.name}
-            </span>
-          )}
-
-          {post.workflowMetrics?.slaStatus === 'BREACHED' && (
-            <span className="badge bg-red-100 text-red-700 border border-red-300 animate-pulse flex items-center gap-1">
-              <AlertTriangle size={12} /> SLA BREACH
-            </span>
           )}
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
-          <span className="text-xs text-gray-400 font-medium whitespace-nowrap">
-            {post.postNumber || new Date(post.createdAt).toLocaleDateString()}
-          </span>
+          {sla && (
+            <span
+              className="w-2 h-2 rounded-full"
+              style={{ backgroundColor: sla.hex, boxShadow: isBreached ? `0 0 0 3px ${sla.hex}22` : undefined }}
+              title={sla.label}
+              aria-label={sla.label}
+            />
+          )}
+          <StatusBadge status={post.status} />
           {showMenu && (
             <div className="relative" ref={menuRef}>
               <button
@@ -139,8 +153,9 @@ const PostCard: React.FC<Props> = ({ post, onReact, onEdit, onDelete }) => {
         </div>
       </div>
 
+      {/* ── Title + body ─────────────────────────────────────────── */}
       <Link to={`/post/${post.id}`} className="block">
-        <h3 className="text-lg font-bold text-gray-900 group-hover:text-brand-primary transition-colors mb-2 line-clamp-2">
+        <h3 className="text-[17px] font-bold text-gray-900 group-hover:text-brand-primary transition-colors mb-1 leading-snug line-clamp-2">
           {post.title}
         </h3>
         <p className="text-sm text-gray-600 line-clamp-2 leading-relaxed">
@@ -148,31 +163,36 @@ const PostCard: React.FC<Props> = ({ post, onReact, onEdit, onDelete }) => {
         </p>
       </Link>
 
-      <div className="mt-4">
-        <AttachmentList attachments={post.attachments} compact />
-      </div>
+      <AttachmentList attachments={post.attachments} compact />
 
-      <div className="flex items-center justify-between mt-5 pt-4 border-t border-surface-border">
-        <div className="flex items-center gap-3">
+      {/* ── Bottom row: author · owner · counts ──────────────────── */}
+      <div className="flex items-center justify-between mt-4 pt-3 border-t border-surface-border/60">
+        <div className="flex items-center gap-2 min-w-0">
           <Avatar user={post.author} size="sm" />
-          <div>
-            <p className="text-xs font-bold text-gray-800">{post.author?.name}</p>
-            <p className="text-[10px] text-gray-500 uppercase tracking-wider">{post.author?.role?.replace('_', '/')}</p>
+          <div className="min-w-0">
+            <p className="text-[12px] font-semibold text-gray-800 truncate">{post.author?.name}</p>
+            <p className="text-[10px] text-gray-500 truncate">
+              {post.owner && post.owner.id !== post.author?.id
+                ? <>owner: <span className="text-gray-700 font-medium">{post.owner.name}</span></>
+                : <>{new Date(post.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</>}
+            </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-4 text-gray-500 text-xs font-semibold">
+        <div className="flex items-center gap-1 text-gray-500 text-xs font-medium">
           <button
             onClick={(e) => { e.preventDefault(); onReact?.(post.id, '👍'); }}
-            className="flex items-center gap-1.5 hover:text-brand-primary hover:bg-brand-light px-2 py-1 rounded-md transition-all"
+            className="flex items-center gap-1 hover:text-brand-primary hover:bg-brand-light px-2 py-1 rounded-md transition-all"
+            aria-label="Like"
           >
-            <ThumbsUp size={14} /> <span>{totalReactions}</span>
+            <ThumbsUp size={13} /> <span>{totalReactions}</span>
           </button>
           <Link
             to={`/post/${post.id}`}
-            className="flex items-center gap-1.5 hover:text-[#0a6dd8] hover:bg-blue-50 px-2 py-1 rounded-md transition-all"
+            className="flex items-center gap-1 hover:text-brand-primary hover:bg-brand-light px-2 py-1 rounded-md transition-all"
+            aria-label="Comments"
           >
-            <MessageSquare size={14} /> <span>{commentCount}</span>
+            <MessageSquare size={13} /> <span>{commentCount}</span>
           </Link>
         </div>
       </div>

@@ -1,0 +1,877 @@
+<title>Athwart Loop · Handbook v5 · Implementation Plan</title>
+<style>
+  :root {
+    --ink:      #1a1a1a;
+    --neutral:  #737373;
+    --neutral-soft: #a3a3a3;
+    --paper:    #fafafa;
+    --surface:  #ffffff;
+    --tint:     #f4f0f9;
+    --tint-strong: #ede3ff;
+    --brand:    #8018de;
+    --brand-ink: #4a0d80;
+    --rule:     #e5e0eb;
+    --rule-soft: #efeaf3;
+    --good:     #2ac25d;
+    --good-soft:#eaf7ee;
+    --warn:     #b8860b;
+    --warn-soft:#fff6de;
+    --defer:    #737373;
+    --defer-soft:#eaeaea;
+
+    --serif: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", "Palatino", Georgia, serif;
+    --sans:  system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono:  ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { background: var(--paper); color: var(--ink); }
+  body {
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    font-variant-numeric: tabular-nums;
+    margin: 0;
+  }
+  h1, h2, h3, h4 { font-family: var(--serif); font-weight: 700; color: var(--ink); text-wrap: balance; margin: 0; }
+
+  .page { max-width: 880px; margin: 0 auto; padding: 88px 32px 120px; }
+  @media (max-width: 720px) { .page { padding: 56px 20px 88px; } }
+
+  /* ── Masthead ──────────────────────────────────────────────────── */
+  .eyebrow {
+    font-family: var(--sans);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--brand);
+  }
+  .masthead { margin-bottom: 56px; }
+  .masthead h1 {
+    font-size: clamp(2.25rem, 5vw, 3.4rem);
+    line-height: 1.05;
+    letter-spacing: -0.015em;
+    margin-top: 16px;
+  }
+  .masthead .subtitle {
+    font-family: var(--serif);
+    font-style: italic;
+    font-size: clamp(1.05rem, 2vw, 1.25rem);
+    color: var(--neutral);
+    margin-top: 12px;
+    max-width: 62ch;
+    line-height: 1.5;
+  }
+  .meta {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 24px;
+    margin-top: 40px;
+    padding: 24px 0;
+    border-top: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+  }
+  .meta > div { display: flex; flex-direction: column; gap: 4px; }
+  .meta dt {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--neutral);
+  }
+  .meta dd { margin: 0; font-size: 14px; color: var(--ink); font-weight: 500; }
+  @media (max-width: 720px) { .meta { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; } }
+
+  /* ── Section headings ──────────────────────────────────────────── */
+  .section { margin-top: 72px; }
+  .section-head { margin-bottom: 32px; }
+  .section-head h2 {
+    font-size: clamp(1.5rem, 3vw, 1.9rem);
+    letter-spacing: -0.01em;
+    margin-top: 10px;
+  }
+  .section-head p {
+    color: var(--neutral);
+    margin: 12px 0 0;
+    max-width: 62ch;
+  }
+
+  /* ── Status matrix ────────────────────────────────────────────── */
+  .matrix {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(155px, 1fr));
+    gap: 10px;
+    margin-top: 24px;
+  }
+  .tile {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 14px 14px 12px;
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    text-decoration: none;
+    color: var(--ink);
+    transition: border-color 0.15s ease, transform 0.15s ease;
+  }
+  .tile:hover { border-color: var(--brand); transform: translateY(-1px); }
+  .tile-head { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+  .tile-id {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    color: var(--brand);
+    font-weight: 600;
+  }
+  .tile-label {
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.25;
+    color: var(--ink);
+  }
+  .status {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 7px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    line-height: 1.2;
+  }
+  .status.shipped { background: var(--good-soft); color: var(--good); }
+  .status.deferred { background: var(--defer-soft); color: var(--defer); }
+  .status-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+
+  /* ── Summary stats ────────────────────────────────────────────── */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    margin: 24px 0 8px;
+  }
+  .stat {
+    padding: 20px;
+    background: var(--tint);
+    border: 1px solid transparent;
+    border-radius: 12px;
+  }
+  .stat-value {
+    font-family: var(--serif);
+    font-size: 2.1rem;
+    line-height: 1;
+    color: var(--brand-ink);
+    letter-spacing: -0.02em;
+  }
+  .stat-label {
+    margin-top: 6px;
+    font-size: 12px;
+    color: var(--neutral);
+    letter-spacing: 0.02em;
+  }
+  @media (max-width: 720px) { .stats { grid-template-columns: 1fr; } }
+
+  /* ── Increment cards ───────────────────────────────────────────── */
+  .increment {
+    display: grid;
+    grid-template-columns: 96px minmax(0, 1fr);
+    gap: 28px;
+    padding: 28px 0;
+    border-top: 1px solid var(--rule);
+  }
+  .increment:last-child { border-bottom: 1px solid var(--rule); }
+  .increment-id {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--brand);
+    letter-spacing: 0.04em;
+    padding-top: 4px;
+  }
+  .increment-id .status { margin-top: 8px; display: inline-flex; }
+  .increment-body h3 {
+    font-family: var(--serif);
+    font-size: 1.35rem;
+    line-height: 1.25;
+    letter-spacing: -0.005em;
+    margin-bottom: 6px;
+  }
+  .handbook-ref {
+    font-size: 12px;
+    color: var(--neutral);
+    font-style: italic;
+    margin-bottom: 14px;
+  }
+  .lede {
+    font-size: 15px;
+    line-height: 1.65;
+    color: var(--ink);
+    margin: 0 0 18px;
+    max-width: 62ch;
+  }
+  .lede strong { font-weight: 600; }
+  .kv {
+    display: grid;
+    grid-template-columns: 130px minmax(0, 1fr);
+    gap: 8px 20px;
+    margin-top: 14px;
+    font-size: 13.5px;
+  }
+  .kv dt {
+    color: var(--neutral);
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding-top: 3px;
+  }
+  .kv dd { margin: 0; }
+  .kv dd ul { margin: 0; padding-left: 0; list-style: none; }
+  .kv dd ul li {
+    padding: 3px 0;
+    padding-left: 14px;
+    position: relative;
+    line-height: 1.55;
+  }
+  .kv dd ul li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 12px;
+    width: 6px;
+    height: 1px;
+    background: var(--neutral-soft);
+  }
+  code, .path {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    background: var(--tint);
+    color: var(--brand-ink);
+    padding: 1px 6px;
+    border-radius: 4px;
+  }
+  .path { background: transparent; padding: 0; color: var(--neutral); }
+  .path b { color: var(--brand-ink); font-weight: 500; }
+
+  @media (max-width: 720px) {
+    .increment { grid-template-columns: 1fr; gap: 12px; }
+    .increment-id { padding-top: 0; display: flex; align-items: center; gap: 12px; }
+    .increment-id .status { margin-top: 0; }
+    .kv { grid-template-columns: 1fr; gap: 4px; }
+    .kv dt { padding-top: 12px; }
+  }
+
+  /* ── Decision list ─────────────────────────────────────────────── */
+  .decisions {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0;
+    margin-top: 24px;
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .decision {
+    display: grid;
+    grid-template-columns: 170px minmax(0, 1fr);
+    gap: 20px;
+    padding: 18px 22px;
+    border-top: 1px solid var(--rule);
+  }
+  .decision:first-child { border-top: 0; }
+  .decision-key {
+    font-family: var(--serif);
+    font-style: italic;
+    color: var(--neutral);
+    font-size: 14px;
+  }
+  .decision-value { font-size: 14px; line-height: 1.55; }
+  @media (max-width: 720px) {
+    .decision { grid-template-columns: 1fr; gap: 4px; padding: 16px 18px; }
+  }
+
+  /* ── Verification block ────────────────────────────────────────── */
+  .verify {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 12px;
+    padding: 8px;
+    margin-top: 24px;
+    overflow: hidden;
+  }
+  .verify-row {
+    display: grid;
+    grid-template-columns: 90px minmax(0, 1fr);
+    gap: 20px;
+    padding: 14px 16px;
+    align-items: baseline;
+  }
+  .verify-row + .verify-row { border-top: 1px solid var(--rule-soft); }
+  .verify-id {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--brand);
+    letter-spacing: 0.04em;
+  }
+  .verify-body { font-size: 13.5px; line-height: 1.55; }
+  .verify-body pre {
+    margin: 8px 0 0;
+    padding: 12px 14px;
+    background: #1a1a1a;
+    color: #f5f0fa;
+    border-radius: 8px;
+    font-family: var(--mono);
+    font-size: 11.5px;
+    line-height: 1.5;
+    overflow-x: auto;
+    white-space: pre;
+  }
+
+  /* ── Callout ───────────────────────────────────────────────────── */
+  .callout {
+    padding: 20px 24px;
+    background: var(--tint);
+    border-left: 3px solid var(--brand);
+    border-radius: 0 8px 8px 0;
+    margin: 24px 0 8px;
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--brand-ink);
+  }
+  .callout strong { color: var(--ink); }
+
+  /* ── Footer ────────────────────────────────────────────────────── */
+  footer {
+    margin-top: 96px;
+    padding-top: 32px;
+    border-top: 1px solid var(--rule);
+    color: var(--neutral);
+    font-size: 12px;
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+  footer .brand-mark {
+    font-family: var(--serif);
+    font-style: italic;
+    color: var(--brand-ink);
+  }
+
+  ::selection { background: var(--tint-strong); color: var(--brand-ink); }
+
+  @media print {
+    body { background: white; }
+    .page { padding: 24px; max-width: none; }
+    .tile:hover { transform: none; }
+    .increment { break-inside: avoid; }
+  }
+</style>
+
+<div class="page">
+
+  <!-- ── Masthead ──────────────────────────────────────────────── -->
+  <header class="masthead">
+    <p class="eyebrow">Athwart Loop · Handbook v5 · Implementation Plan</p>
+    <h1>What we built, why, and where every piece lives.</h1>
+    <p class="subtitle">A pass-by-pass record of the thirteen increments that took the pilot from concept to shipped &mdash; one page an engineer can hand to the next teammate joining the project.</p>
+
+    <dl class="meta">
+      <div><dt>Owner</dt>       <dd>Athwart Tech · founder + AI/ML lead</dd></div>
+      <div><dt>Repository</dt>  <dd>pushkar462/IdeaHub &middot; branch <code>main</code></dd></div>
+      <div><dt>Delivered</dt>   <dd>2026-07-04 &rarr; 2026-07-09</dd></div>
+      <div><dt>Status</dt>      <dd>Phase&nbsp;1 complete &middot; Phase&nbsp;2 · 5&thinsp;/&thinsp;6</dd></div>
+    </dl>
+  </header>
+
+  <!-- ── Executive summary ─────────────────────────────────────── -->
+  <section class="section" style="margin-top: 48px;">
+    <div class="section-head">
+      <p class="eyebrow">01 &middot; Summary</p>
+      <h2>Thirteen increments, thirteen commits, one deploy target.</h2>
+      <p>Every increment is a single self-contained commit on <code>main</code>. The pilot's definition of done (handbook C5) is met &mdash; a typed, section-tagged Question can be posted, moved Open&nbsp;&rarr;&nbsp;Discussing&nbsp;&rarr;&nbsp;Resolved with a canonical answer, and found again by search, with every transition audit-logged.</p>
+    </div>
+
+    <div class="stats">
+      <div class="stat">
+        <div class="stat-value">13&thinsp;/&thinsp;14</div>
+        <div class="stat-label">Increments shipped &middot; only LOVABLE swap remains, by design</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value">6</div>
+        <div class="stat-label">New Prisma migrations landed on Supabase</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value">3</div>
+        <div class="stat-label">AI services wired through the existing Groq client</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── At-a-glance matrix ────────────────────────────────────── -->
+  <section class="section">
+    <div class="section-head">
+      <p class="eyebrow">02 &middot; At-a-glance</p>
+      <h2>The thirteen increments &mdash; one line each.</h2>
+    </div>
+
+    <div class="matrix">
+      <a href="#i1" class="tile">
+        <div class="tile-head"><span class="tile-id">I1</span><span class="status shipped"><span class="status-dot"></span>Shipped</span></div>
+        <div class="tile-label">State-machine + postNumber triggers</div>
+      </a>
+      <a href="#i2" class="tile">
+        <div class="tile-head"><span class="tile-id">I2</span><span class="status shipped"><span class="status-dot"></span>Shipped</span></div>
+        <div class="tile-label">Composer &amp; Board copy pass</div>
+      </a>
+      <a href="#i3" class="tile">
+        <div class="tile-head"><span class="tile-id">I3</span><span class="status shipped"><span class="status-dot"></span>Shipped</span></div>
+        <div class="tile-label">tsvector + GIN search</div>
+      </a>
+      <a href="#i4" class="tile">
+        <div class="tile-head"><span class="tile-id">I4</span><span class="status shipped"><span class="status-dot"></span>Shipped</span></div>
+        <div class="tile-label">Canonical answer + build handoff</div>
+      </a>
+      <a href="#i5" class="tile">
+        <div class="tile-head"><span class="tile-id">I5</span><span class="status shipped"><span class="status-dot"></span>Shipped</span></div>
+        <div class="tile-label">SLA hardening + Loop health dashboard</div>
+      </a>
+      <a href="#i6" class="tile">
+        <div class="tile-head"><span class="tile-id">I6</span><span class="status shipped"><span class="status-dot"></span>Shipped</span></div>
+        <div class="tile-label">Contributions record view</div>
+      </a>
+      <a href="#i7" class="tile">
+        <div class="tile-head"><span class="tile-id">I7</span><span class="status shipped"><span class="status-dot"></span>Shipped</span></div>
+        <div class="tile-label">n8n weekly digest endpoint</div>
+      </a>
+      <a href="#i8" class="tile">
+        <div class="tile-head"><span class="tile-id">I8</span><span class="status shipped"><span class="status-dot"></span>Shipped</span></div>
+        <div class="tile-label">Section owners + KB sweep</div>
+      </a>
+      <a href="#p1" class="tile">
+        <div class="tile-head"><span class="tile-id">P1</span><span class="status shipped"><span class="status-dot"></span>Shipped</span></div>
+        <div class="tile-label">Voting on Ideas (loop_votes)</div>
+      </a>
+      <a href="#p2" class="tile">
+        <div class="tile-head"><span class="tile-id">P2</span><span class="status shipped"><span class="status-dot"></span>Shipped</span></div>
+        <div class="tile-label">Themed monthly campaigns</div>
+      </a>
+      <a href="#p3" class="tile">
+        <div class="tile-head"><span class="tile-id">P3</span><span class="status shipped"><span class="status-dot"></span>Shipped</span></div>
+        <div class="tile-label">Brand manual pass on typography</div>
+      </a>
+      <a href="#p4" class="tile">
+        <div class="tile-head"><span class="tile-id">P4</span><span class="status shipped"><span class="status-dot"></span>Shipped</span></div>
+        <div class="tile-label">pgvector infrastructure</div>
+      </a>
+      <a href="#p5" class="tile">
+        <div class="tile-head"><span class="tile-id">P5</span><span class="status shipped"><span class="status-dot"></span>Shipped</span></div>
+        <div class="tile-label">LLM auto-tag + KB nominations</div>
+      </a>
+      <a href="#p6" class="tile">
+        <div class="tile-head"><span class="tile-id">P6</span><span class="status deferred"><span class="status-dot"></span>Deferred</span></div>
+        <div class="tile-label">LOVABLE gateway swap</div>
+      </a>
+    </div>
+  </section>
+
+  <!-- ── Decisions locked ──────────────────────────────────────── -->
+  <section class="section">
+    <div class="section-head">
+      <p class="eyebrow">03 &middot; Decisions locked</p>
+      <h2>Four architectural choices shape everything below.</h2>
+      <p>Each was confirmed with the founder before any code moved. Every increment respects these &mdash; nothing here quietly re-litigates them.</p>
+    </div>
+
+    <div class="decisions">
+      <div class="decision">
+        <div class="decision-key">Repository is truth</div>
+        <div class="decision-value">Loop stays a standalone Node&nbsp;+&nbsp;Express&nbsp;+&nbsp;Postgres app. Handbook references to bills / cases / partners tables are honoured as string refs on the post (<code>linkedEntityId</code>), never as CRM joins.</div>
+      </div>
+      <div class="decision">
+        <div class="decision-key">Groq stays</div>
+        <div class="decision-value">All AI features route through the existing Groq llama-3.3-70b client. The <code>LOVABLE_API_KEY</code> gateway swap is a future one-file change &mdash; the interface is ready in <span class="path"><b>services/embedding</b>/</span>.</div>
+      </div>
+      <div class="decision">
+        <div class="decision-key">Engineering roles</div>
+        <div class="decision-value">The existing role enum (ADMIN, FOUNDER, FRONTEND, BACKEND, DEVOPS, AI_ML) is kept; routing is driven exclusively by the pre-existing <code>SectionOwnership</code> table.</div>
+      </div>
+      <div class="decision">
+        <div class="decision-key">Copy &gt; routes</div>
+        <div class="decision-value">Handbook wording (&ldquo;Post to Loop&rdquo;, &ldquo;Open&nbsp;/&nbsp;needs response&rdquo;, LOOP-YYYY-NNNN numbering) is adopted verbatim on the surface. Internal URLs are unchanged &mdash; bookmarks survive.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Phase 1 ──────────────────────────────────────────────── -->
+  <section class="section">
+    <div class="section-head">
+      <p class="eyebrow">04 &middot; Phase 1 &middot; the pilot</p>
+      <h2>Eight increments that close the loop end to end.</h2>
+      <p>These are the increments that take the app from &ldquo;posts exist&rdquo; to &ldquo;the pilot definition of done in handbook C5 is met&rdquo;. Every transition is DB-enforced, every resolution is captured, every question is findable, every hour of overdue SLA is visible.</p>
+    </div>
+
+    <article class="increment" id="i1">
+      <div class="increment-id">I1<div><span class="status shipped"><span class="status-dot"></span>Shipped</span></div></div>
+      <div class="increment-body">
+        <h3>State-machine trigger &amp; post-number trigger</h3>
+        <div class="handbook-ref">Handbook C2 &middot; &ldquo;every status transition is validated at the DB level&rdquo;</div>
+        <p class="lede">A Postgres trigger enforces the Open&nbsp;&rarr;&nbsp;Discussing&nbsp;&rarr;&nbsp;Resolved state machine at the database, not just the service. A second trigger auto-generates <code>LOOP-YYYY-NNNN</code> numbers via a year-scoped sequence &mdash; concurrent inserts never collide. Illegal transitions raise <code>LOOP_TRANSITION:</code> exceptions that the error middleware surfaces as clean 400s.</p>
+        <dl class="kv">
+          <dt>Delivers</dt>
+          <dd><ul>
+            <li>Postgres triggers <code>generate_loop_post_number</code> &amp; <code>loop_posts_transition_guard</code></li>
+            <li>Parked/Declined resolutions require a one-line reason at DB level</li>
+            <li>Friendly 400 mapping in Express error middleware</li>
+          </ul></dd>
+          <dt>Key paths</dt>
+          <dd class="path">migrations/<b>20260708120000_state_machine_triggers</b> &middot; <b>middleware/error.middleware.ts</b> &middot; <b>controllers/post.controller.ts</b></dd>
+        </dl>
+      </div>
+    </article>
+
+    <article class="increment" id="i2">
+      <div class="increment-id">I2<div><span class="status shipped"><span class="status-dot"></span>Shipped</span></div></div>
+      <div class="increment-body">
+        <h3>Composer &amp; Board copy pass, search-first UX</h3>
+        <div class="handbook-ref">Handbook D1 &amp; D3 &middot; &ldquo;before posting, search Loop&rdquo;</div>
+        <p class="lede">The board defaults to <em>Open&nbsp;/&nbsp;needs response</em>. The composer opens with the handbook's own language, a three-pill type picker (Question / Problem / Idea), and a purple hint that names the canonical resolved post if one exists &mdash; catching duplicates at the moment of creation. Non-blocking soft-warn on unfamiliar bill / case / partner IDs.</p>
+        <dl class="kv">
+          <dt>Delivers</dt>
+          <dd><ul>
+            <li>New <code>needResponse</code> query filter (OPEN + un-acknowledged)</li>
+            <li>Duplicate-check returns canonical excerpt for the top match</li>
+            <li>Shared <span class="path"><b>lib/linkedEntity.ts</b></span> for FE/BE format hints</li>
+          </ul></dd>
+          <dt>Key paths</dt>
+          <dd class="path">frontend/<b>components/posts/CreatePostModal.tsx</b> &middot; <b>pages/FeedPage.tsx</b> &middot; backend/<b>services/intelligence/duplicate-check.service.ts</b></dd>
+        </dl>
+      </div>
+    </article>
+
+    <article class="increment" id="i3">
+      <div class="increment-id">I3<div><span class="status shipped"><span class="status-dot"></span>Shipped</span></div></div>
+      <div class="increment-body">
+        <h3>tsvector column + GIN index</h3>
+        <div class="handbook-ref">Handbook C4 &middot; &ldquo;full-text search across title, body, and linked reference&rdquo;</div>
+        <p class="lede">A generated <code>searchVector tsvector</code> column with weights <em>A</em>&nbsp;=&nbsp;title, <em>B</em>&nbsp;=&nbsp;linkedEntityId (simple config, no stemming, IDs stay literal), <em>C</em>&nbsp;=&nbsp;description. Feed search and duplicate-check both rank via <code>plainto_tsquery</code>&nbsp;+&nbsp;<code>ts_rank</code> through raw SQL, with an HNSW-style GIN index doing the heavy lifting.</p>
+        <dl class="kv">
+          <dt>Delivers</dt>
+          <dd><ul>
+            <li>Generated <code>tsvector</code> stays synced automatically on every write</li>
+            <li>GIN index <code>Post_searchVector_gin_idx</code> for O(log&nbsp;n) recall</li>
+            <li>Prisma schema declares the column as <code>Unsupported</code> &mdash; no drift</li>
+          </ul></dd>
+          <dt>Key paths</dt>
+          <dd class="path">migrations/<b>20260709120000_search_vector_gin</b> &middot; <b>services/feed.service.ts</b> &middot; <b>services/intelligence/duplicate-check.service.ts</b></dd>
+        </dl>
+      </div>
+    </article>
+
+    <article class="increment" id="i4">
+      <div class="increment-id">I4<div><span class="status shipped"><span class="status-dot"></span>Shipped</span></div></div>
+      <div class="increment-body">
+        <h3>Canonical answer block + GitHub build handoff</h3>
+        <div class="handbook-ref">Handbook D2 &amp; C6 &middot; &ldquo;the answer that stays, or the issue that ships&rdquo;</div>
+        <p class="lede">When a Question is marked <em>Answered</em>, the resolver can inline a canonical answer that becomes a pinned comment hoisted into a green &ldquo;&#x2713; Canonical answer &middot; marked by X&rdquo; block above the thread. When a Problem or Idea is marked <em>Fixed</em> or <em>Approved</em>, an optional GitHub issue URL is captured and shown on the resolution card. Fixes a pre-existing bug where the status endpoint silently dropped resolution payload.</p>
+        <dl class="kv">
+          <dt>Delivers</dt>
+          <dd><ul>
+            <li>New <code>Post.buildIssueUrl</code> column</li>
+            <li>Canonical answer landing as a comment with <code>isCanonical=true</code> &mdash; no field duplication</li>
+            <li>ResolveModal now conditionally renders per type &times; resolution</li>
+          </ul></dd>
+          <dt>Key paths</dt>
+          <dd class="path">migrations/<b>20260709130000_post_build_issue_url</b> &middot; <b>components/posts/ResolveModal.tsx</b> &middot; <b>pages/PostDetailPage.tsx</b></dd>
+        </dl>
+      </div>
+    </article>
+
+    <article class="increment" id="i5">
+      <div class="increment-id">I5<div><span class="status shipped"><span class="status-dot"></span>Shipped</span></div></div>
+      <div class="increment-body">
+        <h3>SLA hardening + Loop health dashboard</h3>
+        <div class="handbook-ref">Handbook B5 &amp; C4 &middot; &ldquo;the black-hole rate is the health metric&rdquo;</div>
+        <p class="lede">The hourly SLA cron now performs three guarded flips: OPEN 24&ndash;48h&nbsp;&rarr;&nbsp;<em>AT_RISK</em> silently, OPEN&nbsp;&ge;&nbsp;48h&nbsp;&rarr;&nbsp;<em>BREACHED</em> with owner notification, DISCUSSING&nbsp;&ge;&nbsp;7d without status change&nbsp;&rarr;&nbsp;<em>BREACHED</em> with notification. A new admin-only Loop health page surfaces the black-hole rate, per-section breakdown, time-to-acknowledge and time-to-resolve averages.</p>
+        <dl class="kv">
+          <dt>Delivers</dt>
+          <dd><ul>
+            <li>Every cron flip guarded by <code>updateMany</code> &mdash; no double notifications</li>
+            <li>New <code>GET /api/admin/loop-health</code> aggregating counts + averages</li>
+            <li>Tailwind-only section-breakdown bar list (no chart lib pulled in)</li>
+          </ul></dd>
+          <dt>Key paths</dt>
+          <dd class="path"><b>cron/sla.cron.ts</b> &middot; <b>routes/admin.routes.ts</b> &middot; frontend/<b>pages/AdminLoopHealthPage.tsx</b></dd>
+        </dl>
+      </div>
+    </article>
+
+    <article class="increment" id="i6">
+      <div class="increment-id">I6<div><span class="status shipped"><span class="status-dot"></span>Shipped</span></div></div>
+      <div class="increment-body">
+        <h3>Contributions view &mdash; factual layer</h3>
+        <div class="handbook-ref">Handbook Section 10 &middot; &ldquo;recognition, not points&rdquo;</div>
+        <p class="lede">Every profile now has a Contributions tab surfacing three panels &mdash; posts raised, posts helped resolve, questions answered &mdash; with an <em>All time</em>&nbsp;/&nbsp;<em>Last 30d</em>&nbsp;/&nbsp;<em>Last 7d</em> window toggle. Non-owners of another profile see only Recent posts; admin and founder see both. Sidebar renamed to <em>My contributions</em>.</p>
+        <dl class="kv">
+          <dt>Delivers</dt>
+          <dd><ul>
+            <li><code>?since=&lt;ISO&gt;</code> filter on the existing endpoint, capped 100 items per list</li>
+            <li>Tabbed profile layout with per-tab window scoping</li>
+          </ul></dd>
+          <dt>Key paths</dt>
+          <dd class="path">backend/<b>routes/user.routes.ts</b> &middot; frontend/<b>pages/ProfilePage.tsx</b></dd>
+        </dl>
+      </div>
+    </article>
+
+    <article class="increment" id="i7">
+      <div class="increment-id">I7<div><span class="status shipped"><span class="status-dot"></span>Shipped</span></div></div>
+      <div class="increment-body">
+        <h3>Weekly digest endpoint (n8n)</h3>
+        <div class="handbook-ref">Handbook Section 6 &middot; &ldquo;n8n owns the schedule, Loop owns the payload&rdquo;</div>
+        <p class="lede">A new <code>GET /api/digest/weekly</code> returns the founder's Friday recap as JSON &mdash; new posts + top 3 by comments, resolved this week with resolver first name, awaiting Questions past 48h, stalled Ideas past 7d, and a single named recognition. Authenticated by an <code>X-Digest-Token</code> header. Empty token returns 503 by design so a misconfigured deploy can't leak.</p>
+        <dl class="kv">
+          <dt>Delivers</dt>
+          <dd><ul>
+            <li>PII-light payload &mdash; first names only in named recognition</li>
+            <li>Every call logged on the backend; every rejection warns</li>
+            <li>README documents the payload shape and the n8n recipe</li>
+          </ul></dd>
+          <dt>Key paths</dt>
+          <dd class="path">backend/<b>controllers/digest.controller.ts</b> &middot; <b>routes/digest.routes.ts</b> &middot; <b>config/env.config.ts</b></dd>
+        </dl>
+      </div>
+    </article>
+
+    <article class="increment" id="i8">
+      <div class="increment-id">I8<div><span class="status shipped"><span class="status-dot"></span>Shipped</span></div></div>
+      <div class="increment-body">
+        <h3>Section owners admin + KB sweep</h3>
+        <div class="handbook-ref">Handbook B6 &amp; B7 &middot; &ldquo;every section has one owner; every Use Case gets swept&rdquo;</div>
+        <p class="lede">Admins can reassign section owners via a picker table &mdash; new posts route to the new owner, in-flight posts keep their existing owner. A KB sweep page lists resolved Use Cases waiting to be swept into a knowledge base, with a per-row landing-note input and one-click <em>Mark swept</em> that writes a <code>KB_SWEPT</code> audit entry.</p>
+        <dl class="kv">
+          <dt>Delivers</dt>
+          <dd><ul>
+            <li>New <code>Post.sweptToKb</code>, <code>Post.sweptAt</code>, <code>KB_SWEPT</code> audit action</li>
+            <li>Idempotent sweep endpoint &mdash; second call returns <code>alreadySwept</code></li>
+          </ul></dd>
+          <dt>Key paths</dt>
+          <dd class="path">migrations/<b>20260710120000_kb_sweep</b> &middot; <b>controllers/admin.controller.ts</b> &middot; frontend/<b>pages/AdminKbSweepPage.tsx</b> &middot; <b>pages/AdminSectionOwnersPage.tsx</b></dd>
+        </dl>
+      </div>
+    </article>
+  </section>
+
+  <!-- ── Phase 2 ──────────────────────────────────────────────── -->
+  <section class="section">
+    <div class="section-head">
+      <p class="eyebrow">05 &middot; Phase 2 &middot; the growth pass</p>
+      <h2>Five landed, one deferred by design.</h2>
+      <p>Phase 2 adds what only makes sense once the wider team is posting: voting to surface strong Ideas, campaigns to focus a month's attention, brand-manual typography, semantic-search infrastructure, and LLM assist for classification and KB promotion.</p>
+    </div>
+
+    <article class="increment" id="p1">
+      <div class="increment-id">P1<div><span class="status shipped"><span class="status-dot"></span>Shipped</span></div></div>
+      <div class="increment-body">
+        <h3>Voting on Ideas &mdash; <code>loop_votes</code></h3>
+        <div class="handbook-ref">Handbook C1 &middot; &ldquo;composite PK, one vote per user per post&rdquo;</div>
+        <p class="lede">A new <code>Vote</code> table with composite primary key <code>(postId,&nbsp;userId)</code> enforces the &ldquo;one vote per user&rdquo; rule at the database level. The <code>POST /api/posts/:id/vote</code> endpoint toggles state and returns the new count. IdeaCard renders a proper ArrowBigUp button with a pressed state; the post store uses optimistic UI so votes feel instant even on slow networks.</p>
+        <dl class="kv">
+          <dt>Delivers</dt>
+          <dd><ul>
+            <li>Composite-PK enforcement at DB level &mdash; race-safe</li>
+            <li>Feed &amp; detail responses carry <code>voteCount</code> + <code>hasVoted</code></li>
+            <li>Optimistic FE with revert-on-failure</li>
+          </ul></dd>
+          <dt>Key paths</dt>
+          <dd class="path">migrations/<b>20260709160000_votes</b> &middot; <b>services/feed.service.ts</b> &middot; frontend/<b>components/ideas/IdeaCard.tsx</b></dd>
+        </dl>
+      </div>
+    </article>
+
+    <article class="increment" id="p2">
+      <div class="increment-id">P2<div><span class="status shipped"><span class="status-dot"></span>Shipped</span></div></div>
+      <div class="increment-body">
+        <h3>Campaigns &mdash; time-boxed themed asks</h3>
+        <div class="handbook-ref">Handbook B8 &middot; &ldquo;this month, cut bill-verification time in half&rdquo;</div>
+        <p class="lede">A new <code>Campaign</code> model lets the founder open themed prompts with an end date. Contributors tag Ideas to an active campaign; contributors and admins alike see a ranked-by-votes view on the campaign detail page. At close, the founder picks a winner &mdash; the winning post's author gets a notification, and the campaign carries a &ldquo;&#x1F3C6;&nbsp;Winner&rdquo; card thereafter.</p>
+        <dl class="kv">
+          <dt>Delivers</dt>
+          <dd><ul>
+            <li>Server refuses to tag a post to a non-ACTIVE campaign</li>
+            <li>Feed filter <code>?campaignId=</code> scopes the board</li>
+            <li>Three new pages: campaign list, detail, admin composer</li>
+          </ul></dd>
+          <dt>Key paths</dt>
+          <dd class="path">migrations/<b>20260709170000_campaigns</b> &middot; <b>controllers/campaign.controller.ts</b> &middot; frontend/<b>pages/CampaignDetailPage.tsx</b></dd>
+        </dl>
+      </div>
+    </article>
+
+    <article class="increment" id="p3">
+      <div class="increment-id">P3<div><span class="status shipped"><span class="status-dot"></span>Shipped</span></div></div>
+      <div class="increment-body">
+        <h3>Brand manual pass on typography</h3>
+        <div class="handbook-ref">Athwart brand manual &middot; &ldquo;Quattrocento for headings, Anek Devanagari for body&rdquo;</div>
+        <p class="lede">A minimal-blast-radius font swap: index.html preloads Quattrocento (400/700) and Anek Devanagari (300&ndash;700); Tailwind's <code>font-heading</code> and <code>font-sans</code> point to them; a single <code>@layer base</code> rule applies the serif family to every <code>h1&ndash;h6</code>. No component sweep was needed. The accent palette already matched the brand manual from earlier work.</p>
+        <dl class="kv">
+          <dt>Delivers</dt>
+          <dd><ul>
+            <li>System-wide typography swap in three files</li>
+            <li>Contrast spot-check &mdash; all pairs above WCAG&nbsp;AAA at body sizes</li>
+          </ul></dd>
+          <dt>Key paths</dt>
+          <dd class="path">frontend/<b>index.html</b> &middot; <b>tailwind.config.js</b> &middot; <b>src/index.css</b></dd>
+        </dl>
+      </div>
+    </article>
+
+    <article class="increment" id="p4">
+      <div class="increment-id">P4<div><span class="status shipped"><span class="status-dot"></span>Shipped</span></div></div>
+      <div class="increment-body">
+        <h3>pgvector semantic-search infrastructure</h3>
+        <div class="handbook-ref">Handbook C4 aspirational &middot; &ldquo;retrieval-grounded, authorization-scoped&rdquo;</div>
+        <p class="lede">The <code>vector</code> extension is enabled; posts carry a nullable 1536-dim <code>embedding</code> column indexed by HNSW with cosine ops. A pluggable <code>EmbeddingProvider</code> interface accepts a Noop (default, no external calls) or an OpenAI provider (text-embedding-3-small, env-gated). The <em>Similar posts</em> widget on post detail hides itself when the provider is disabled &mdash; ships silent until ops flips it.</p>
+        <dl class="kv">
+          <dt>Delivers</dt>
+          <dd><ul>
+            <li>HNSW index on <code>Post.embedding</code> with <code>vector_cosine_ops</code></li>
+            <li>Zero-cost by default &mdash; noop provider skips all embed calls</li>
+            <li>One-file swap for Lovable or any other provider later</li>
+          </ul></dd>
+          <dt>Key paths</dt>
+          <dd class="path">migrations/<b>20260709180000_pgvector</b> &middot; backend/<b>services/embedding/</b> &middot; <b>services/search/semantic-search.service.ts</b></dd>
+        </dl>
+      </div>
+    </article>
+
+    <article class="increment" id="p5">
+      <div class="increment-id">P5<div><span class="status shipped"><span class="status-dot"></span>Shipped</span></div></div>
+      <div class="increment-body">
+        <h3>Auto-tag composer hint + KB nominations</h3>
+        <div class="handbook-ref">Handbook aspirational &middot; &ldquo;the model suggests; a human confirms&rdquo;</div>
+        <p class="lede">On the composer, a debounced Groq classification returns a suggested type + section with a confidence and one-line reasoning &mdash; shown as a purple &ldquo;Loop AI suggests&rdquo; banner with Apply / Dismiss. Once the user picks anything manually, the classifier stops overriding. On the KB sweep page, admins can ask Groq to nominate resolved posts that look like they became rules; nominations render as a distinct card with a per-row Graduate button. The model never sets the flag itself.</p>
+        <dl class="kv">
+          <dt>Delivers</dt>
+          <dd><ul>
+            <li>Strict enum validation collapses invalid model output to null</li>
+            <li>Same 15m / 20-req rate limit as other AI endpoints</li>
+            <li>Manual pick always wins &mdash; the AI is a hint, never an actor</li>
+          </ul></dd>
+          <dt>Key paths</dt>
+          <dd class="path">backend/<b>services/intelligence/auto-tag.service.ts</b> &middot; <b>services/intelligence/kb-nomination.service.ts</b> &middot; frontend/<b>components/posts/CreatePostModal.tsx</b></dd>
+        </dl>
+      </div>
+    </article>
+
+    <article class="increment" id="p6">
+      <div class="increment-id">P6<div><span class="status deferred"><span class="status-dot"></span>Deferred</span></div></div>
+      <div class="increment-body">
+        <h3>LOVABLE gateway swap</h3>
+        <div class="handbook-ref">Handbook aspirational &middot; deferred by founder direction</div>
+        <p class="lede">The handbook envisions all AI calls going through Athwart's Lovable gateway. Founder direction is explicit: Loop stays standalone with the Groq client until further notice. The swap is a one-file addition &mdash; a <code>LovableEmbeddingProvider</code> alongside the existing OpenAI provider, plus mirroring the same pattern in the four <span class="path"><b>services/intelligence/</b>*</span> Groq calls. No infrastructure change needed.</p>
+        <dl class="kv">
+          <dt>Waiting on</dt>
+          <dd>Explicit go-ahead from founder to point AI traffic at the Lovable gateway. Everything else is ready.</dd>
+        </dl>
+      </div>
+    </article>
+  </section>
+
+  <!-- ── Verification ─────────────────────────────────────────── -->
+  <section class="section">
+    <div class="section-head">
+      <p class="eyebrow">06 &middot; Verification</p>
+      <h2>Six checks that prove every phase actually landed.</h2>
+      <p>These run against the deployed app. The full 44-test walkthrough is in the session notes; the six below are the minimum &ldquo;did this ship right&rdquo; smoke test an engineer can hand to QA.</p>
+    </div>
+
+    <div class="verify">
+      <div class="verify-row">
+        <div class="verify-id">I1</div>
+        <div class="verify-body">
+          <div>New posts have numbers like <code>LOOP-2026-0042</code>. Illegal transitions fail at DB level:</div>
+          <pre>UPDATE "Post" SET status = 'RESOLVED' WHERE id = &lt;open post id&gt;;
+-- expects: LOOP_TRANSITION: Resolution is required…</pre>
+        </div>
+      </div>
+      <div class="verify-row">
+        <div class="verify-id">I3</div>
+        <div class="verify-body">
+          <div>Search plan uses the GIN index:</div>
+          <pre>EXPLAIN SELECT id FROM "Post"
+ WHERE "searchVector" @@ plainto_tsquery('english', 'bill');
+-- expects: Bitmap Index Scan on Post_searchVector_gin_idx</pre>
+        </div>
+      </div>
+      <div class="verify-row">
+        <div class="verify-id">I7</div>
+        <div class="verify-body">
+          <div>Digest endpoint returns JSON for the correct token, 401 for anything else:</div>
+          <pre>curl -H "X-Digest-Token: $DIGEST_TOKEN" \
+     https://&lt;backend&gt;/api/digest/weekly</pre>
+        </div>
+      </div>
+      <div class="verify-row">
+        <div class="verify-id">P1</div>
+        <div class="verify-body">
+          <div>Vote uniqueness enforced at DB level:</div>
+          <pre>SELECT COUNT(*) FROM "Vote" GROUP BY "postId", "userId"
+ HAVING COUNT(*) &gt; 1;
+-- expects: zero rows</pre>
+        </div>
+      </div>
+      <div class="verify-row">
+        <div class="verify-id">P4</div>
+        <div class="verify-body">
+          <div>Extension and column both live on the DB:</div>
+          <pre>SELECT extname FROM pg_extension WHERE extname = 'vector';
+SELECT indexname FROM pg_indexes
+ WHERE indexname = 'Post_embedding_hnsw_idx';</pre>
+        </div>
+      </div>
+      <div class="verify-row">
+        <div class="verify-id">P5</div>
+        <div class="verify-body">
+          <div>In the composer, paste a long title. Within about a second, the purple <em>Loop AI suggests</em> banner surfaces a type and section with a reasoning line, and applying it flips both fields. Manual picks always beat the classifier.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout">
+      <strong>What breaks the pilot.</strong> Only three states are genuinely broken: <em>a post creates without a number</em> (I1 migration didn't run), <em>the composer never suggests a type</em> (Groq key rejected or rate-limited), or <em>the SLA cron never advances state</em> (the Render service was never restarted after a schedule change). Everything else fails gracefully &mdash; empty widgets, silent 401s, or noop AI &mdash; without user-visible errors.
+    </div>
+  </section>
+
+  <!-- ── Deploy ───────────────────────────────────────────────── -->
+  <section class="section">
+    <div class="section-head">
+      <p class="eyebrow">07 &middot; Deploy sequence</p>
+      <h2>Three steps, every time.</h2>
+    </div>
+
+    <ol class="lede" style="padding-left: 20px; max-width: 62ch;">
+      <li style="padding-bottom: 8px;"><strong>Push to <code>main</code>.</strong> Vercel picks up the frontend automatically; Render picks up the backend automatically.</li>
+      <li style="padding-bottom: 8px;"><strong>Run migrations against Supabase from your laptop.</strong> The Shared Pooler URL on port 5432 works with <code>prisma migrate deploy</code>; the transaction pooler on 6543 does not.</li>
+      <li><strong>Set environment variables in Render.</strong> The digest endpoint needs <code>DIGEST_TOKEN</code> before it will respond to n8n; embeddings need <code>EMBED_PROVIDER=openai</code> + <code>OPENAI_API_KEY</code> if and when you turn them on.</li>
+    </ol>
+  </section>
+
+  <footer>
+    <div>
+      <span class="brand-mark">Athwart Loop</span> &middot; internal reference document
+    </div>
+    <div>
+      Compiled 2026-07-09 &middot; commit <code>ae05cd1</code>
+    </div>
+  </footer>
+
+</div>

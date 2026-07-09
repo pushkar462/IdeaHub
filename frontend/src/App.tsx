@@ -30,9 +30,11 @@ const App: React.FC = () => (
       {/* Protected */}
       <Route element={<ProtectedRoute />}>
         <Route element={<AppLayout />}>
-          <Route index element={<Navigate to="/dashboard" replace />} />
-          <Route path="/dashboard" element={<DashboardPage />} />
+          {/* Landing = the Board (search-first, per handbook + redesign audit) */}
+          <Route index element={<Navigate to="/feed" replace />} />
           <Route path="/feed" element={<FeedPage />} />
+          {/* Legacy destinations kept as redirects so old bookmarks still resolve. */}
+          <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/archive" element={<ArchivePage />} />
           <Route path="/notifications" element={<NotificationsPage />} />
           <Route path="/profile" element={<ProfilePage />} />
@@ -48,8 +50,8 @@ const App: React.FC = () => (
         </Route>
       </Route>
 
-      {/* Catch-all */}
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      {/* Catch-all lands on the board too */}
+      <Route path="*" element={<Navigate to="/feed" replace />} />
     </Routes>
   </>
 );

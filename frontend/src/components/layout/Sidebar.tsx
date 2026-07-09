@@ -1,38 +1,52 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/auth.store';
 import { useNotificationStore } from '@/stores/notification.store';
 import Avatar from '@/components/shared/Avatar';
 import {
-  Home,
   LayoutList,
-  Archive,
-  Bell,
   User as UserIcon,
+  Bell,
+  Megaphone,
   Shield,
   Activity,
   Users,
   BookOpen,
-  Megaphone,
+  ChevronDown,
   LogOut,
-  X
+  X,
 } from 'lucide-react';
 
-const NAV = [
-  { to: '/dashboard',     icon: Home,       label: 'Dashboard' },
+// Handbook + redesign IA: one canonical Board; sections are a secondary
+// browse axis, not their own destinations.
+const PRIMARY = [
   { to: '/feed',          icon: LayoutList, label: 'Board' },
   { to: '/campaigns',     icon: Megaphone,  label: 'Campaigns' },
-  { to: '/archive',       icon: Archive,    label: 'Archive' },
-  { to: '/notifications', icon: Bell,       label: 'Notifications' },
   { to: '/profile',       icon: UserIcon,   label: 'My contributions' },
+  { to: '/notifications', icon: Bell,       label: 'Notifications' },
+];
+
+// The nine business sections plus General. Clicking a section jumps to the
+// board pre-filtered by that section.
+const SECTIONS: Array<{ id: string; label: string }> = [
+  { id: 'BILLS',      label: 'Bills'      },
+  { id: 'INVOICING',  label: 'Invoicing'  },
+  { id: 'PATIENTS',   label: 'Patients'   },
+  { id: 'CASES',      label: 'Cases'      },
+  { id: 'PARTNERS',   label: 'Partners'   },
+  { id: 'HOSPITALS',  label: 'Hospitals'  },
+  { id: 'DOCTORS',    label: 'Doctors'    },
+  { id: 'WHATSAPP',   label: 'WhatsApp'   },
+  { id: 'PLATFORM',   label: 'Platform'   },
+  { id: 'GENERAL',    label: 'General'    },
 ];
 
 const ADMIN_NAV = [
-  { to: '/admin/loop-health',    icon: Activity,  label: 'Loop health'     },
-  { to: '/admin/section-owners', icon: Users,     label: 'Section owners'  },
-  { to: '/admin/kb-sweep',       icon: BookOpen,  label: 'KB sweep'        },
+  { to: '/admin/loop-health',    icon: Activity,  label: 'Loop health'      },
+  { to: '/admin/section-owners', icon: Users,     label: 'Section owners'   },
+  { to: '/admin/kb-sweep',       icon: BookOpen,  label: 'KB sweep'         },
   { to: '/admin/campaigns',      icon: Megaphone, label: 'Manage campaigns' },
-  { to: '/admin/roles',          icon: Shield,    label: 'Role Management' },
+  { to: '/admin/roles',          icon: Shield,    label: 'Role Management'  },
 ];
 
 interface SidebarProps {
@@ -45,7 +59,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const { unreadCount } = useNotificationStore();
   const navigate = useNavigate();
   const isAdmin = user?.role === 'FOUNDER' || user?.role === 'ADMIN';
-  const navItems = isAdmin ? [...NAV, ...ADMIN_NAV] : NAV;
+  const [sectionsOpen, setSectionsOpen] = useState(true);
 
   const handleLogout = () => {
     logout();
@@ -68,8 +82,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
               <circle cx="70" cy="50" r="8" />
             </svg>
           </div>
-          <div>
+          <div className="flex items-baseline gap-1.5">
             <p className="font-bold text-gray-900 text-[20px] tracking-tight leading-none">athwart</p>
+            <p className="font-heading italic text-brand-primary text-[15px] leading-none">Loop</p>
           </div>
         </div>
         <button className="md:hidden text-gray-400 hover:text-gray-900 p-1 rounded transition-colors" onClick={onClose}>
@@ -77,27 +92,72 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         </button>
       </div>
 
-      {/* Nav */}
-      <nav className="flex-1 px-4 py-6 space-y-1.5">
-        {navItems.map(({ to, icon: Icon, label }) => (
+      {/* Primary nav */}
+      <nav className="flex-1 px-4 py-5 space-y-1">
+        {PRIMARY.map(({ to, icon: Icon, label }) => (
           <NavLink
             key={to}
             to={to}
             onClick={onClose}
-            className={({ isActive }) =>
-              `nav-link group ${isActive ? 'active' : ''}`
-            }
+            end={to === '/feed'}
+            className={({ isActive }) => `nav-link group ${isActive ? 'active' : ''}`}
           >
             <Icon size={18} className="opacity-80 transition-transform duration-300 group-hover:scale-110 group-hover:text-brand-primary" />
             <span className="flex-1 tracking-wide">{label}</span>
             {to === '/notifications' && unreadCount > 0 && (
-              <span className="ml-auto bg-accent-orange text-white text-[10px] rounded-full px-2 py-0.5
-                               flex items-center justify-center font-bold">
+              <span className="ml-auto bg-brand-primary text-white text-[10px] rounded-full px-2 py-0.5 flex items-center justify-center font-bold">
                 {unreadCount > 9 ? '9+' : unreadCount}
               </span>
             )}
           </NavLink>
         ))}
+
+        {/* Browse by section */}
+        <div className="pt-5">
+          <button
+            onClick={() => setSectionsOpen((v) => !v)}
+            className="flex items-center gap-1 px-4 pb-2 text-[10px] font-bold tracking-[0.14em] uppercase text-gray-400 hover:text-gray-600 transition-colors w-full"
+          >
+            <span>Browse by section</span>
+            <ChevronDown size={12} className={`ml-auto transition-transform ${sectionsOpen ? '' : '-rotate-90'}`} />
+          </button>
+          {sectionsOpen && (
+            <ul className="space-y-0.5">
+              {SECTIONS.map((s) => (
+                <li key={s.id}>
+                  <NavLink
+                    to={`/feed?section=${s.id}`}
+                    onClick={onClose}
+                    className="flex items-center gap-3 px-4 py-1.5 rounded-lg text-[13px] text-gray-600 hover:bg-brand-light hover:text-brand-primary transition-colors"
+                  >
+                    <span className="inline-block w-1 h-1 rounded-full bg-gray-300"></span>
+                    {s.label}
+                  </NavLink>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        {/* Admin group */}
+        {isAdmin && (
+          <div className="pt-5">
+            <p className="px-4 pb-2 text-[10px] font-bold tracking-[0.14em] uppercase text-gray-400">
+              Admin
+            </p>
+            {ADMIN_NAV.map(({ to, icon: Icon, label }) => (
+              <NavLink
+                key={to}
+                to={to}
+                onClick={onClose}
+                className={({ isActive }) => `nav-link group ${isActive ? 'active' : ''}`}
+              >
+                <Icon size={18} className="opacity-80 transition-transform duration-300 group-hover:scale-110 group-hover:text-brand-primary" />
+                <span className="flex-1 tracking-wide">{label}</span>
+              </NavLink>
+            ))}
+          </div>
+        )}
       </nav>
 
       {/* User footer */}
@@ -109,14 +169,13 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             </div>
             <div className="min-w-0">
               <p className="text-sm font-semibold text-gray-800 truncate">{user.name}</p>
-              <p className="text-xs text-gray-500 truncate font-medium">{user.role?.replace('_', '/')}</p>
+              <p className="text-[10px] text-gray-500 truncate font-medium uppercase tracking-wider">{user.role?.replace('_', '/')}</p>
             </div>
           </div>
         )}
         <button
           onClick={handleLogout}
-          className="w-full flex items-center justify-center gap-2 text-sm text-gray-500 hover:text-accent-orange 
-                     hover:bg-accent-orange/10 transition-all px-3 py-2 rounded-xl font-medium"
+          className="w-full flex items-center justify-center gap-2 text-sm text-gray-500 hover:text-brand-primary hover:bg-brand-light transition-all px-3 py-2 rounded-xl font-medium"
         >
           <LogOut size={16} />
           Sign out

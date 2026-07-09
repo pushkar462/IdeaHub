@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { motion, Variants } from 'framer-motion';
-import { Search, Filter, FileText, Plus } from 'lucide-react';
+import { Search, Filter, FileText, Plus, Inbox } from 'lucide-react';
 import api from '@/api/axios';
 import { usePostStore } from '@/stores/post.store';
 import { useAuthStore } from '@/stores/auth.store';
@@ -25,13 +26,33 @@ const STATUS_FILTERS: Array<{ value: string; label: string }> = [
 
 const FeedPage: React.FC = () => {
   const { user } = useAuthStore();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { feed, loading, hasMore, loadingMore, fetchFeed, fetchMoreFeed, reactToPost, deletePost, totalPosts, stats } = usePostStore();
-  const [search, setSearch]     = useState('');
-  const [type, setType]         = useState('');
-  const [section, setSection]   = useState('');
-  const [status, setStatus]     = useState('NEEDS_RESPONSE');
-  const [ownerId, setOwnerId]   = useState('');
-  const [authorId, setAuthorId] = useState('');
+
+  // Read initial state from URL so sidebar links (?section=BILLS, ?mine=1)
+  // and legacy /archive redirects (?status=RESOLVED) hydrate correctly.
+  const [search, setSearch]     = useState(searchParams.get('q') ?? '');
+  const [type, setType]         = useState(searchParams.get('type') ?? '');
+  const [section, setSection]   = useState(searchParams.get('section') ?? '');
+  const [status, setStatus]     = useState(searchParams.get('status') ?? 'NEEDS_RESPONSE');
+  const [ownerId, setOwnerId]   = useState(searchParams.get('ownerId') ?? '');
+  const [authorId, setAuthorId] = useState(
+    searchParams.get('mine') === '1' && user?.id ? String(user.id) : (searchParams.get('authorId') ?? '')
+  );
+
+  // React when the sidebar changes the URL while we're already on /feed.
+  useEffect(() => {
+    const urlSection = searchParams.get('section') ?? '';
+    const urlStatus  = searchParams.get('status')  ?? 'NEEDS_RESPONSE';
+    const urlMine    = searchParams.get('mine') === '1';
+    if (urlSection !== section) setSection(urlSection);
+    if (urlStatus  !== status)  setStatus(urlStatus);
+    if (urlMine && user?.id && authorId !== String(user.id)) setAuthorId(String(user.id));
+    if (!urlMine && searchParams.get('authorId') === null && authorId && user?.id === Number(authorId)) {
+      setAuthorId('');
+    }
+
+  }, [searchParams]);
   const [showModal, setShowModal] = useState(false);
   const [editingPost, setEditingPost] = useState<Post | null>(null);
 
@@ -240,19 +261,19 @@ const FeedPage: React.FC = () => {
       ) : feed.length === 0 ? (
         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}>
           <EmptyState
-            icon="✨"
-            title={hasActiveFilters ? "No matches found" : "Your feed is empty"}
+            icon={<Inbox size={28} strokeWidth={1.5} className="text-brand-primary" />}
+            title={hasActiveFilters ? "Nothing matches these filters" : "The board is quiet"}
             description={
               hasActiveFilters
-                ? "Try adjusting your filters to see more posts."
-                : "Be the first to start a conversation or log an issue."
+                ? "Loosen or clear a filter to see more posts."
+                : "A half-formed thought beats one kept in your head. Post the first one."
             }
             action={
               hasActiveFilters ? (
-                <button onClick={clearAllFilters} className="btn-secondary">Clear Filters</button>
+                <button onClick={clearAllFilters} className="btn-secondary">Clear filters</button>
               ) : (
                 <button onClick={() => setShowModal(true)} className="btn-primary">
-                  <Plus size={16} /> Create Post
+                  <Plus size={16} /> Post to Loop
                 </button>
               )
             }
